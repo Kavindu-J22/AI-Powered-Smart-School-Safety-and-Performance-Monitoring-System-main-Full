@@ -1,0 +1,12 @@
+*.md # Documentation files
+*.pyc  # Python compiled files
+__pycache__/  # Python cache
+*.log  # Log files
+*.pth  # Python package files
+*.h5  # Keras model files
+*.wav  # Audio files
+*.mp3  # Audio files
+*.ogg  # Audio files
+*.flac  # Audio files
+*.bin  # Binary files
+Non Speech Dataset/  # Audio dataset

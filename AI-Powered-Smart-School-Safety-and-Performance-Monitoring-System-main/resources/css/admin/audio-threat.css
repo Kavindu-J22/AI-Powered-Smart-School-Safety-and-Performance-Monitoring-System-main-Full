@@ -1,0 +1,240 @@
+/* Audio Threat Detection Dashboard Styles */
+
+/* Audio Visualizer */
+.audio-visualizer-container {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-radius: 12px;
+    padding: 15px;
+    overflow: hidden;
+}
+
+#audioVisualizer {
+    width: 100%;
+    height: 150px;
+    display: block;
+}
+
+/* Status Indicators */
+.status-active {
+    color: #10B981;
+    animation: statusPulse 2s infinite;
+}
+
+.status-inactive {
+    color: #6B7280;
+}
+
+.status-alert {
+    color: #EF4444;
+    animation: alertPulse 1s infinite;
+}
+
+@keyframes statusPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+@keyframes alertPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+/* Alert Cards */
+.alert-card {
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-left: 4px solid;
+    transition: all 0.3s ease;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.alert-card.critical {
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.1), transparent);
+    border-color: #EF4444;
+}
+
+.alert-card.high {
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.1), transparent);
+    border-color: #F59E0B;
+}
+
+.alert-card.medium {
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.1), transparent);
+    border-color: #3B82F6;
+}
+
+.alert-card.low {
+    background: linear-gradient(90deg, rgba(107, 114, 128, 0.1), transparent);
+    border-color: #6B7280;
+}
+
+.alert-card .alert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.alert-card .alert-title {
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: capitalize;
+}
+
+.alert-card .alert-time {
+    font-size: 12px;
+    color: #6B7280;
+}
+
+.alert-card .alert-details {
+    font-size: 13px;
+    color: #4B5563;
+}
+
+/* Detection Results */
+#detectionResultsPanel .result-item {
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.probability-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: #E5E7EB;
+    overflow: hidden;
+    margin-top: 5px;
+}
+
+.probability-bar .fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.probability-bar .fill.crying { background: linear-gradient(90deg, #3B82F6, #60A5FA); }
+.probability-bar .fill.screaming { background: linear-gradient(90deg, #EF4444, #F87171); }
+.probability-bar .fill.shouting { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+.probability-bar .fill.glass_breaking { background: linear-gradient(90deg, #8B5CF6, #A78BFA); }
+.probability-bar .fill.normal { background: linear-gradient(90deg, #10B981, #34D399); }
+
+/* Level Badge */
+.level-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.level-badge.critical {
+    background: #FEE2E2;
+    color: #991B1B;
+}
+
+.level-badge.high {
+    background: #FEF3C7;
+    color: #92400E;
+}
+
+.level-badge.medium {
+    background: #DBEAFE;
+    color: #1E40AF;
+}
+
+.level-badge.low {
+    background: #F3F4F6;
+    color: #374151;
+}
+
+/* Recording Indicator */
+.recording-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: rgba(239, 68, 68, 0.1);
+    color: #EF4444;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.recording-indicator .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #EF4444;
+    animation: recordingPulse 1s infinite;
+}
+
+@keyframes recordingPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* Microphone Status */
+.mic-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mic-status.connected {
+    color: #10B981;
+}
+
+.mic-status.disconnected {
+    color: #6B7280;
+}
+
+.mic-status.error {
+    color: #EF4444;
+}
+
+/* Input Level */
+#inputLevelBar {
+    transition: width 0.1s ease, background-color 0.3s ease;
+}
+
+#inputLevelBar.low {
+    background: linear-gradient(90deg, #10B981, #34D399) !important;
+}
+
+#inputLevelBar.medium {
+    background: linear-gradient(90deg, #F59E0B, #FBBF24) !important;
+}
+
+#inputLevelBar.high {
+    background: linear-gradient(90deg, #EF4444, #F87171) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .audio-visualizer-container {
+        padding: 10px;
+    }
+    
+    #audioVisualizer {
+        height: 100px;
+    }
+    
+    .alert-card {
+        padding: 12px;
+    }
+}
+

@@ -1,0 +1,198 @@
+/* ============================================================================
+   Common Form Styles
+   Shared across: students/form, teachers/form, classes/form, subjects/form, security/form
+   ============================================================================ */
+
+/* Card Styling */
+.form-card {
+    border-radius: 12px !important;
+    border: none;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Input Group Outline */
+.input-group-outline .form-control {
+    border-radius: 8px !important;
+    border: 1.5px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.input-group-outline .form-control:focus {
+    border-color: #5e72e4;
+    box-shadow: 0 0 0 0.2rem rgba(94, 114, 228, 0.15);
+}
+
+.input-group-outline.is-focused .form-label {
+    color: #5e72e4;
+}
+
+/* Section Dividers */
+.section-divider {
+    height: 2px;
+    background: linear-gradient(90deg, #5e72e4, #825ee4);
+    border-radius: 1px;
+    margin: 1rem 0;
+}
+
+/* Form Sections */
+.form-section {
+    border-left: 4px solid #5e72e4;
+    background: linear-gradient(135deg, rgba(94, 114, 228, 0.05) 0%, rgba(123, 136, 238, 0.03) 100%);
+    padding: 1.5rem;
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 2rem;
+}
+
+.form-section h6 {
+    color: #5e72e4;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.form-section-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+}
+
+/* Button Styling */
+.form-btn {
+    border-radius: 8px !important;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0.5px;
+}
+
+.btn-success-gradient {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border: none;
+}
+
+.btn-primary-gradient {
+    background: linear-gradient(135deg, #5e72e4 0%, #7b88ee 100%) !important;
+    border: none !important;
+}
+
+.btn-secondary-gradient {
+    background: linear-gradient(135deg, #6c757d 0%, #8a9296 100%) !important;
+    border: none !important;
+}
+
+.btn-outline-warning {
+    border-color: #ffc107;
+    color: #ffc107;
+}
+
+.btn-outline-warning:hover {
+    background: #ffc107;
+    color: #212529;
+}
+
+/* Parent Form Specific */
+.parent-form-border {
+    border: 2px dashed #dee2e6 !important;
+    border-radius: 12px !important;
+    transition: all 0.3s ease;
+}
+
+.parent-form-border:hover {
+    border-color: #5e72e4 !important;
+    background-color: rgba(94, 114, 228, 0.02);
+}
+
+/* Password Fields - Reduced Spacing */
+.password-field .input-group-outline {
+    margin-bottom: 0.75rem !important;
+}
+
+/* Fields with Helper Text */
+.field-with-helper .input-group-outline {
+    margin-bottom: 0.5rem !important;
+}
+
+.field-with-helper .form-text {
+    margin-top: -0.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.75rem;
+    color: #28a745 !important;
+}
+
+/* Photo Upload Sections */
+.photo-upload {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.photo-upload:hover {
+    border-color: #5e72e4;
+    background-color: rgba(94, 114, 228, 0.02);
+}
+
+.photo-preview {
+    max-width: 150px;
+    max-height: 150px;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+/* Subject Selection Checkboxes */
+.subject-check-box {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.subject-check-box:hover {
+    border-color: #5e72e4 !important;
+    background-color: rgba(94, 114, 228, 0.05);
+}
+
+/* NFC Animation */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.7;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.nfc-animation {
+    position: relative;
+}
+
+/* Required Field Indicator */
+.required::after {
+    content: " *";
+    color: red;
+}
+
+/* Material Icons Alignment */
+.material-icons-outlined {
+    vertical-align: middle;
+}
+
+/* Card Header Gradient */
+.card-header-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border-radius: 12px 12px 0 0 !important;
+    border: none !important;
+    color: white;
+}
+
+.card-header-gradient h6 {
+    color: white !important;
+    margin-bottom: 0;
+}

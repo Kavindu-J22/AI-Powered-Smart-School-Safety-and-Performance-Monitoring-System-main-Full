@@ -1,0 +1,48 @@
+{
+  "model_path": "F:\\UD Researchs\\AI-Powered-Smart-School-Safety-and-Performance-Monitoring-System-main\\Audio-Based_Threat_Detection\\models\\saved\\non_speech_threat_model.pth",
+  "classes": [
+    "crying",
+    "screaming",
+    "shouting",
+    "glass_breaking",
+    "normal"
+  ],
+  "num_classes": 5,
+  "final_training_accuracy": 0.9981807155852032,
+  "final_training_loss": 0.006513078495082746,
+  "final_validation_accuracy": 0.9636216653193209,
+  "test_accuracy": 0.9636216653193209,
+  "per_class_metrics": {
+    "crying": {
+      "precision": 0.9565217391304348,
+      "recall": 0.9850746268656716,
+      "f1-score": 0.9705882352941176,
+      "support": 67.0
+    },
+    "normal": {
+      "precision": 0.9883177570093458,
+      "recall": 0.9195652173913044,
+      "f1-score": 0.9527027027027027,
+      "support": 460.0
+    },
+    "screaming": {
+      "precision": 0.95,
+      "recall": 0.9901408450704225,
+      "f1-score": 0.9696551724137931,
+      "support": 710.0
+    },
+    "accuracy": 0.9636216653193209,
+    "macro avg": {
+      "precision": 0.9649464987132602,
+      "recall": 0.9649268964424662,
+      "f1-score": 0.9643153701368711,
+      "support": 1237.0
+    },
+    "weighted avg": {
+      "precision": 0.9646023643864496,
+      "recall": 0.9636216653193209,
+      "f1-score": 0.9634016389828152,
+      "support": 1237.0
+    }
+  }
+}

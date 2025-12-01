@@ -1,0 +1,17 @@
+/* Custom color overrides for bg-gradient-dark */
+.bg-gradient-dark {
+    background-image: linear-gradient(195deg, #06C167 0%, #06C167 100%) !important;
+}
+
+.text-gradient.text-dark {
+    background-image: linear-gradient(195deg, #06C167, #06C167) !important;
+}
+
+/* Button overrides for bg-gradient-dark */
+.btn.bg-gradient-dark {
+    background-image: linear-gradient(195deg, #06C167 0%, #06C167 100%) !important;
+}
+
+.btn.bg-gradient-dark:hover {
+    background-image: linear-gradient(195deg, #05a755 0%, #05a755 100%) !important;
+}

@@ -1,0 +1,61 @@
+name: Deploy to Infinity Free
+
+on:
+  push:
+    branches:
+      - dev-tharusha
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, bcmath, pdo_mysql
+
+    - name: Install Composer dependencies
+      run: composer install --no-dev --optimize-autoloader
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install npm dependencies
+      run: npm ci
+
+    - name: Build assets
+      run: npm run build
+
+    - name: Deploy to FTP
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ftpupload.net
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        port: 21
+        local-dir: ./
+        server-dir: ./
+        exclude: |
+          .git*
+          .github*
+          node_modules/**
+          tests/**
+          README.md
+          .env.example
+          artisan
+          composer.json
+          composer.lock
+          package.json
+          package-lock.json
+          vite.config.js
+          phpunit.xml
+          *.sh
+          BACKEND_CODING_GUIDE.md

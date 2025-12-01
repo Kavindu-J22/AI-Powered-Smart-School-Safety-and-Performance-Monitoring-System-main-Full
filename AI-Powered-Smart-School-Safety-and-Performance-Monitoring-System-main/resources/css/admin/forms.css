@@ -1,0 +1,423 @@
+/* Form Styles - Enhanced and Extracted from Inline Styles */
+
+/* Avatar/Image Upload Section */
+.avatar-upload-container {
+    position: relative;
+    display: inline-block;
+}
+
+.avatar-preview-image {
+    height: 70px;
+    width: 70px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.avatar-preview-image:hover {
+    border-color: var(--primary-green, #06c167);
+    box-shadow: 0 0 10px rgba(6, 193, 103, 0.2);
+}
+
+.avatar-placeholder {
+    height: 70px;
+    width: 70px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.avatar-placeholder:hover {
+    border-color: var(--primary-green, #06c167);
+    background-color: rgba(6, 193, 103, 0.05);
+}
+
+.avatar-edit-button {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: var(--primary-green, #06c167);
+    color: white;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.avatar-edit-button:hover {
+    background: var(--dark-green, #059652);
+    transform: scale(1.1);
+}
+
+/* Hidden file inputs */
+.hidden-file-input {
+    display: none;
+}
+
+/* Readonly fields */
+.field-readonly {
+    background-color: #f8f9fa !important;
+    cursor: not-allowed !important;
+    border-color: #e9ecef !important;
+}
+
+/* Form section headers */
+.form-section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.form-section-icon {
+    font-size: 1.2rem;
+    margin-right: 0.5rem;
+    color: #5e72e4;
+}
+
+.form-section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #344767;
+    margin: 0;
+}
+
+/* Form help text */
+.form-helper-text {
+    padding-left: 8px;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+/* Conditional visibility containers */
+.conditional-container {
+    display: none;
+    animation: slideDown 0.3s ease-out;
+}
+
+.conditional-container.active {
+    display: block;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Subject selection cards */
+.subject-selection-card {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.subject-selection-card:hover {
+    border-color: var(--primary-green, #06c167);
+    background-color: rgba(6, 193, 103, 0.02);
+}
+
+.subject-checkbox {
+    margin-right: 0.75rem;
+    cursor: pointer;
+}
+
+.subject-label {
+    cursor: pointer;
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+/* NFC Modal Specific Styles */
+.nfc-modal-content {
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
+.nfc-scanning-icon {
+    font-size: 80px;
+    animation: pulse 2s infinite;
+}
+
+.nfc-success-icon {
+    font-size: 80px;
+    color: #10b981;
+}
+
+.nfc-error-icon {
+    font-size: 80px;
+    color: #ef4444;
+}
+
+.nfc-status-container {
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.nfc-continue-button {
+    display: none;
+}
+
+.nfc-continue-button.active {
+    display: inline-block;
+}
+
+/* Upload placeholder */
+.upload-placeholder {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.upload-placeholder:hover {
+    border-color: var(--primary-green, #06c167);
+    background-color: rgba(6, 193, 103, 0.05);
+}
+
+.upload-placeholder-icon {
+    font-size: 2rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+/* Grade/Class selection with icons */
+.form-input-with-icon {
+    position: relative;
+}
+
+.form-input-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #adb5bd;
+    font-size: 1.2rem;
+    pointer-events: none;
+}
+
+.form-input-padded {
+    padding-left: 40px;
+}
+
+/* Parent selector */
+.parent-selector-container {
+    display: none;
+    animation: slideDown 0.3s ease-out;
+}
+
+.parent-selector-container.active {
+    display: block;
+}
+
+.parent-card {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: white;
+    transition: all 0.3s ease;
+}
+
+.parent-card:hover {
+    border-color: var(--primary-green, #06c167);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.parent-remove-button {
+    cursor: pointer;
+    color: #ef4444;
+    transition: all 0.2s ease;
+}
+
+.parent-remove-button:hover {
+    color: #dc2626;
+    transform: scale(1.1);
+}
+
+/* Warning/Info alerts in forms */
+.form-warning-box {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
+}
+
+.form-info-box {
+    background-color: #cfe2ff;
+    border-left: 4px solid #0d6efd;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
+}
+
+/* Form validation states */
+.form-field-error {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
+
+.form-field-success {
+    border-color: #10b981 !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+}
+
+.error-message {
+    color: #ef4444;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.success-message {
+    color: #10b981;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Submit button states */
+.form-submit-button {
+    min-width: 120px;
+    transition: all 0.3s ease;
+}
+
+.form-submit-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.form-submit-button.loading {
+    position: relative;
+    color: transparent;
+}
+
+.form-submit-button.loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid white;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+/* Multi-select enhanced */
+.multi-select-wrapper {
+    position: relative;
+}
+
+.multi-select-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    min-height: 42px;
+}
+
+.multi-select-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: var(--primary-green, #06c167);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 16px;
+    font-size: 0.875rem;
+}
+
+.multi-select-tag-remove {
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 0.25rem;
+}
+
+.multi-select-tag-remove:hover {
+    opacity: 0.7;
+}
+
+/* Responsive form adjustments */
+@media (max-width: 768px) {
+    .avatar-preview-image,
+    .avatar-placeholder {
+        height: 60px;
+        width: 60px;
+    }
+
+    .form-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .nfc-scanning-icon,
+    .nfc-success-icon,
+    .nfc-error-icon {
+        font-size: 60px;
+    }
+}
+
+/* Accessibility improvements */
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #344767;
+}
+
+.form-required {
+    color: #ef4444;
+    margin-left: 0.25rem;
+}
+
+/* Focus states */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary-green, #06c167);
+    box-shadow: 0 0 0 3px rgba(6, 193, 103, 0.1);
+}
+
+/* Smooth transitions */
+.form-control,
+.form-select,
+.btn {
+    transition: all 0.2s ease;
+}

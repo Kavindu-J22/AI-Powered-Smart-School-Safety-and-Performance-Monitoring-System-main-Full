@@ -1,0 +1,99 @@
+/* ============================================================================
+   School Setup & Academic Year Styles
+   For: admin/pages/setup/school/, admin/pages/setup/academic-year/
+   ============================================================================ */
+
+/* Info Sections */
+.info-section {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e9ecef;
+}
+
+.info-section h6 {
+    color: var(--primary-color, var(--primary-green, #06C167));
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.info-item {
+    margin-bottom: 0.75rem;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.875rem;
+}
+
+.info-value {
+    color: #6c757d;
+    font-size: 0.95rem;
+    margin-top: 0.25rem;
+}
+
+.info-value.empty {
+    color: #adb5bd;
+    font-style: italic;
+}
+
+/* Buttons */
+.btn-edit-settings {
+    background: linear-gradient(135deg, var(--primary-color, var(--primary-green, #06C167)), var(--secondary-color, var(--success-green, #10B981)));
+    border: none;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.btn-edit-settings:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(var(--primary-rgb, 6, 193, 103), 0.3);
+    color: white;
+}
+
+/* School Logo */
+.school-logo-display {
+    max-height: 120px;
+    max-width: 200px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.no-logo-placeholder {
+    width: 120px;
+    height: 120px;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+}
+
+/* Academic Year Specific */
+.current-year-badge {
+    background: linear-gradient(135deg, var(--primary-color, var(--primary-green, #06C167)), var(--secondary-color, var(--success-green, #10B981)));
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    display: inline-block;
+}
+
+.status-active {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.status-inactive {
+    color: #6c757d;
+}

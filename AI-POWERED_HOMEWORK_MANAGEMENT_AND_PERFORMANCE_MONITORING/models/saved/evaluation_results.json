@@ -1,0 +1,39 @@
+{
+  "question_generation": {
+    "total_generated": 100,
+    "valid_questions": 100,
+    "validity_rate": 100.0,
+    "by_type": {
+      "MCQ": 100.0,
+      "SHORT_ANSWER": 100.0,
+      "DESCRIPTIVE": 100.0
+    }
+  },
+  "mcq_grading": {
+    "total_tested": 50,
+    "correct_evaluations": 100,
+    "accuracy": 100.0
+  },
+  "subjective_grading": {
+    "short_answer": {
+      "tested": 30,
+      "avg_score_for_correct": 99.56
+    },
+    "descriptive": {
+      "tested": 20,
+      "avg_score_for_correct": 74.32
+    }
+  },
+  "keyword_extraction": {
+    "precision": 15.33,
+    "recall": 38.83,
+    "f1_score": 21.99
+  },
+  "overall": {
+    "question_validity": 100.0,
+    "mcq_accuracy": 100.0,
+    "keyword_f1": 21.99,
+    "overall_score": 74.0
+  },
+  "evaluated_at": "2025-12-01T02:04:41.302694"
+}

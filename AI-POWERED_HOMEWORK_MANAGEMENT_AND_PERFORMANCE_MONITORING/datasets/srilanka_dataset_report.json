@@ -1,0 +1,136 @@
+{
+  "generation_date": "2025-11-20T17:15:34.149190",
+  "curriculum": "Sri Lankan National Curriculum (English Medium)",
+  "grades": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+  ],
+  "subjects": [
+    "science",
+    "history",
+    "english",
+    "health_science"
+  ],
+  "statistics": {
+    "total_lessons": 156,
+    "total_questions": 1560,
+    "lessons_per_subject": 39,
+    "questions_per_subject": 390,
+    "lessons_per_grade": 26,
+    "questions_per_grade": 260
+  },
+  "breakdown": {
+    "science": {
+      "grade_6": {
+        "lessons": 8,
+        "questions": 80
+      },
+      "grade_7": {
+        "lessons": 8,
+        "questions": 80
+      },
+      "grade_8": {
+        "lessons": 8,
+        "questions": 80
+      },
+      "grade_9": {
+        "lessons": 8,
+        "questions": 80
+      },
+      "grade_10": {
+        "lessons": 8,
+        "questions": 80
+      },
+      "grade_11": {
+        "lessons": 8,
+        "questions": 80
+      }
+    },
+    "history": {
+      "grade_6": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_7": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_8": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_9": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_10": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_11": {
+        "lessons": 6,
+        "questions": 60
+      }
+    },
+    "english": {
+      "grade_6": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_7": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_8": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_9": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_10": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_11": {
+        "lessons": 6,
+        "questions": 60
+      }
+    },
+    "health_science": {
+      "grade_6": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_7": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_8": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_9": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_10": {
+        "lessons": 6,
+        "questions": 60
+      },
+      "grade_11": {
+        "lessons": 6,
+        "questions": 60
+      }
+    }
+  },
+  "data_location": {
+    "raw_data": "data\\raw\\srilanka_syllabus",
+    "processed_data": "data\\processed\\srilanka_syllabus"
+  }
+}

@@ -1,0 +1,194 @@
+/* Attendance Dashboard Specific Styles */
+
+/* Auto-refresh functionality indicator */
+.auto-refresh-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--white, #FFFFFF);
+    padding: 10px 15px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-soft, 0 1px 3px 0 rgba(0, 0, 0, 0.1));
+    border: 1px solid var(--medium-gray, #F3F4F6);
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6B7280);
+    z-index: 1000;
+    animation: gentleFadeIn 0.3s ease-out;
+}
+
+.auto-refresh-indicator i {
+    animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Check-ins table enhanced styling */
+.check-ins-table-wrapper {
+    background: var(--white, #FFFFFF);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.check-ins-table tbody tr {
+    transition: background-color 0.2s ease;
+    animation: slideInUp 0.3s ease-out;
+}
+
+.check-ins-table tbody tr:hover {
+    background-color: var(--soft-green, rgba(6, 193, 103, 0.05));
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Empty state styling */
+.empty-state {
+    padding: 3rem 1rem;
+    text-align: center;
+}
+
+.empty-state-icon {
+    font-size: 4rem;
+    color: var(--medium-gray, #D1D5DB);
+    margin-bottom: 1rem;
+}
+
+.empty-state-text {
+    color: var(--text-secondary, #6B7280);
+    font-size: 0.9rem;
+}
+
+/* Real-time status indicators */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-indicator::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-indicator.status-present::before {
+    background-color: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+    animation: pulse-green 2s infinite;
+}
+
+.status-indicator.status-absent::before {
+    background-color: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+    animation: pulse-red 2s infinite;
+}
+
+.status-indicator.status-late::before {
+    background-color: #f59e0b;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+    animation: pulse-yellow 2s infinite;
+}
+
+@keyframes pulse-green {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes pulse-red {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes pulse-yellow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Statistics cards specific to attendance dashboard */
+.attendance-stat-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.attendance-stat-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+    0%, 100% { transform: translate(0, 0); opacity: 0; }
+    50% { transform: translate(-25%, -25%); opacity: 1; }
+}
+
+/* Time display styling */
+.time-display {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Method badge styling */
+.method-badge {
+    min-width: 60px;
+    text-align: center;
+}
+
+/* Late arrival indicator */
+.late-indicator {
+    margin-left: 0.5rem;
+    vertical-align: middle;
+    animation: blink 2s infinite;
+}
+
+@keyframes blink {
+    0%, 50%, 100% { opacity: 1; }
+    25%, 75% { opacity: 0.3; }
+}
+
+/* Responsive adjustments for attendance dashboard */
+@media (max-width: 768px) {
+    .auto-refresh-indicator {
+        bottom: 10px;
+        right: 10px;
+        font-size: 0.65rem;
+        padding: 8px 12px;
+    }
+
+    .attendance-stat-card {
+        margin-bottom: 1rem;
+    }
+
+    .check-ins-table {
+        font-size: 0.875rem;
+    }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+    .auto-refresh-indicator i,
+    .status-indicator::before,
+    .late-indicator,
+    .check-ins-table tbody tr,
+    .attendance-stat-card::after {
+        animation: none !important;
+    }
+}

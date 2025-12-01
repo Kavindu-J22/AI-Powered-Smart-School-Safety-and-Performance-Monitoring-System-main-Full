@@ -1,0 +1,297 @@
+/* Comprehensive Theme System for Smart School Management */
+/* This file provides consistent theming across all application components */
+
+/* Global theme update function for JavaScript */
+.theme-updatable {
+    transition: all 0.3s ease;
+}
+
+/* Button variations with theme colors */
+.btn-primary,
+.btn-theme-primary {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green)) !important;
+    border-color: var(--primary-green) !important;
+    color: white !important;
+}
+
+.btn-primary:hover,
+.btn-theme-primary:hover {
+    background: linear-gradient(135deg, var(--light-green), var(--dark-green)) !important;
+    border-color: var(--dark-green) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+}
+
+.btn-outline-primary,
+.btn-outline-theme {
+    color: var(--primary-green) !important;
+    border-color: var(--primary-green) !important;
+    background: transparent !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-theme:hover {
+    background: var(--primary-green) !important;
+    border-color: var(--primary-green) !important;
+    color: white !important;
+}
+
+/* Gradient background classes */
+.bg-gradient-primary,
+.bg-gradient-theme-primary {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green)) !important;
+}
+
+.bg-gradient-dark,
+.bg-gradient-theme-dark {
+    background: linear-gradient(135deg, var(--primary-green), var(--dark-green)) !important;
+}
+
+.bg-gradient-secondary,
+.bg-gradient-theme-secondary {
+    background: linear-gradient(135deg, var(--light-green), var(--primary-green)) !important;
+}
+
+.bg-gradient-light,
+.bg-gradient-theme-light {
+    background: linear-gradient(135deg, var(--accent-green), var(--primary-green)) !important;
+}
+
+/* Stat icons and dashboard elements */
+.stat-icon,
+.dashboard-stat .icon,
+.metric-icon,
+.feature-icon {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green)) !important;
+    color: white !important;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.stat-icon:hover,
+.dashboard-stat .icon:hover,
+.metric-icon:hover,
+.feature-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(var(--primary-rgb), 0.3);
+}
+
+/* Quick action buttons */
+.quick-action-btn,
+.action-btn,
+.floating-btn {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green)) !important;
+    border-color: var(--primary-green) !important;
+    color: white !important;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.quick-action-btn:hover,
+.action-btn:hover,
+.floating-btn:hover {
+    background: linear-gradient(135deg, var(--light-green), var(--dark-green)) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(var(--primary-rgb), 0.4);
+}
+
+/* Navigation elements */
+.sidenav .nav-link.active,
+.navbar-nav .nav-link.active,
+.nav-pills .nav-link.active {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green)) !important;
+    color: white !important;
+}
+
+.navbar-brand,
+.brand-text {
+    color: var(--primary-green) !important;
+}
+
+/* Card headers and components */
+.card-primary .card-header,
+.card-theme .card-header,
+.dashboard-card .card-header {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green)) !important;
+    color: white !important;
+    border-bottom: none;
+}
+
+.card-primary,
+.card-theme {
+    border-color: var(--primary-green);
+}
+
+/* Progress bars and indicators */
+.progress-bar,
+.progress-theme {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green)) !important;
+}
+
+.progress-bar-striped {
+    background-image: linear-gradient(45deg, rgba(255,255,255,.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.15) 50%, rgba(255,255,255,.15) 75%, transparent 75%, transparent);
+    background-color: var(--primary-green) !important;
+}
+
+/* Form elements */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary-green) !important;
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25) !important;
+}
+
+.form-check-input:checked {
+    background-color: var(--primary-green) !important;
+    border-color: var(--primary-green) !important;
+}
+
+.input-group-text.theme-accent {
+    background-color: var(--primary-green) !important;
+    border-color: var(--primary-green) !important;
+    color: white !important;
+}
+
+/* Badges and labels */
+.badge-primary,
+.badge-theme {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green)) !important;
+    color: white !important;
+}
+
+/* Alerts */
+.alert-primary,
+.alert-theme {
+    background-color: rgba(var(--primary-rgb), 0.1) !important;
+    border-color: var(--primary-green) !important;
+    color: var(--primary-green) !important;
+}
+
+/* Links and text colors */
+a.theme-link,
+.text-primary,
+.text-theme {
+    color: var(--primary-green) !important;
+}
+
+a.theme-link:hover,
+.text-primary:hover {
+    color: var(--dark-green) !important;
+}
+
+/* Tables */
+.table-primary,
+.table-theme {
+    background-color: rgba(var(--primary-rgb), 0.1) !important;
+}
+
+.table-hover .table-primary:hover,
+.table-hover .table-theme:hover {
+    background-color: rgba(var(--primary-rgb), 0.2) !important;
+}
+
+/* Pagination */
+.page-link.active,
+.page-item.active .page-link {
+    background-color: var(--primary-green) !important;
+    border-color: var(--primary-green) !important;
+}
+
+/* Dropdowns */
+.dropdown-item.active,
+.dropdown-item:active {
+    background-color: var(--primary-green) !important;
+}
+
+/* Modals */
+.modal-header.theme-header {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green)) !important;
+    color: white !important;
+}
+
+/* Tabs */
+.nav-tabs .nav-link.active {
+    color: var(--primary-green) !important;
+    border-color: var(--primary-green) var(--primary-green) transparent !important;
+}
+
+/* Switches and toggles */
+.form-switch .form-check-input:checked {
+    background-color: var(--primary-green) !important;
+    border-color: var(--primary-green) !important;
+}
+
+/* Special theme classes for icons and avatars */
+.icon-background,
+.avatar-primary,
+.notification-primary,
+.status-indicator.active {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green)) !important;
+    color: white !important;
+}
+
+/* Loading states */
+.btn-loading {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green)) !important;
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Hover effects for interactive elements */
+.theme-interactive:hover {
+    color: var(--primary-green) !important;
+    transform: translateY(-1px);
+    transition: all 0.3s ease;
+}
+
+/* Special gradient variations */
+.bg-gradient-primary-soft {
+    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.8), rgba(var(--secondary-rgb), 0.8)) !important;
+}
+
+.bg-gradient-primary-light {
+    background: linear-gradient(135deg, var(--accent-green), rgba(var(--primary-rgb), 0.3)) !important;
+}
+
+/* Dashboard specific */
+.dashboard-widget {
+    border-left: 4px solid var(--primary-green);
+}
+
+.stats-number {
+    color: var(--primary-green) !important;
+    font-weight: 600;
+}
+
+/* Animation disable utility */
+.no-animations * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+}
+
+/* Dark mode adjustments */
+.dark-mode {
+    --primary-green: var(--login-primary, #06C167);
+    --light-green: var(--login-secondary, #10B981);
+    --dark-green: var(--login-secondary, #10B981);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .stat-icon,
+    .quick-action-btn {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+}
+
+/* Print styles */
+@media print {
+    .bg-gradient-primary,
+    .bg-gradient-theme-primary,
+    .btn-primary {
+        background: var(--primary-green) !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

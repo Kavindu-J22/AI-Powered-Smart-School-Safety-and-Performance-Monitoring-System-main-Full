@@ -1,0 +1,48 @@
+/* ============================================================================
+   Timetable Management Styles
+   For: admin/pages/management/timetables/
+   ============================================================================ */
+
+.timetable-grid {
+    overflow-x: auto;
+}
+
+.time-slot-card {
+    min-height: 80px;
+    border-left: 4px solid #e3f2fd;
+}
+
+.time-slot-card.has-class {
+    border-left-color: #1976d2;
+    background-color: #f3f9ff;
+}
+
+.day-selector {
+    border-radius: 25px;
+}
+
+.day-selector.active {
+    background: linear-gradient(45deg, #1976d2, #42a5f5);
+}
+
+.empty-slot {
+    border: 2px dashed #e0e0e0;
+    border-radius: 8px;
+    background-color: #fafafa;
+}
+
+.conflict-warning {
+    border-left-color: #f44336 !important;
+    background-color: #ffebee;
+}
+
+.quick-assign-form .form-control-sm {
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.dropdown-menu {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    border: none;
+}
