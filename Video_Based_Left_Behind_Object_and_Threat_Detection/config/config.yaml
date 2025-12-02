@@ -1,0 +1,158 @@
+# School Security System Configuration
+
+system:
+  name: "Video-Based Left Behind Object and Threat Detection System"
+  version: "1.0.0"
+  timezone: "Asia/Kolkata"  # Adjust to your timezone
+
+# School Schedule Configuration
+schedule:
+  # Define class periods (24-hour format)
+  periods:
+    - name: "Period 1"
+      start: "08:00"
+      end: "08:45"
+    - name: "Period 2"
+      start: "08:50"
+      end: "09:35"
+    - name: "Period 3"
+      start: "09:40"
+      end: "10:25"
+    - name: "Break"
+      start: "10:25"
+      end: "10:45"
+    - name: "Period 4"
+      start: "10:45"
+      end: "11:30"
+    - name: "Period 5"
+      start: "11:35"
+      end: "12:20"
+    - name: "Lunch"
+      start: "12:20"
+      end: "13:00"
+    - name: "Period 6"
+      start: "13:00"
+      end: "13:45"
+    - name: "Period 7"
+      start: "13:50"
+      end: "14:35"
+    - name: "Period 8"
+      start: "14:40"
+      end: "15:25"
+  
+  # School days
+  school_days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+  
+  # Holidays (YYYY-MM-DD format)
+  holidays:
+    - "2024-01-26"  # Republic Day
+    - "2024-08-15"  # Independence Day
+    - "2024-10-02"  # Gandhi Jayanti
+
+# Camera Configuration
+cameras:
+  - id: "CAM_001"
+    name: "Classroom 1A"
+    location: "Building A, Floor 1, Room 1A"
+    type: "ESP32-CAM"
+    ip: "192.168.1.101"
+    enabled: true
+    detection_zones:
+      - type: "classroom"
+        coordinates: [[0, 0], [640, 0], [640, 480], [0, 480]]
+  
+  - id: "CAM_002"
+    name: "Classroom 1B"
+    location: "Building A, Floor 1, Room 1B"
+    type: "ESP32-CAM"
+    ip: "192.168.1.102"
+    enabled: true
+    detection_zones:
+      - type: "classroom"
+        coordinates: [[0, 0], [640, 0], [640, 480], [0, 480]]
+
+# Object Detection Configuration
+object_detection:
+  model:
+    type: "yolov8"
+    weights: "models/left_behind_detector.pt"
+    input_size: [640, 640]
+    confidence_threshold: 0.5
+    iou_threshold: 0.45
+  
+  # Classes to detect as left-behind objects
+  target_classes:
+    - "backpack"
+    - "handbag"
+    - "suitcase"
+    - "book"
+    - "bottle"
+    - "umbrella"
+    - "laptop"
+  
+  # Time threshold for left-behind detection (minutes after last class)
+  left_behind_threshold: 60
+  
+  # Minimum object size (pixels) to consider
+  min_object_size: 1000
+
+# Threat Detection Configuration
+threat_detection:
+  model:
+    type: "slowfast"
+    weights: "models/threat_detector.pt"
+    input_size: [224, 224]
+    clip_length: 32  # Number of frames per clip
+    confidence_threshold: 0.7
+  
+  # Threat categories
+  threat_classes:
+    - "fighting"
+    - "hitting"
+    - "pushing"
+    - "aggressive_behavior"
+    - "weapon_detection"
+  
+  # Alert immediately on threat detection
+  immediate_alert: true
+
+# Tracking Configuration
+tracking:
+  algorithm: "deepsort"  # or "sort", "bytetrack"
+  max_age: 30  # Maximum frames to keep alive a track without detections
+  min_hits: 3  # Minimum detections before track is confirmed
+  iou_threshold: 0.3
+
+# Notification Configuration
+notifications:
+  left_behind_objects:
+    channels: ["email", "telegram"]
+    recipients:
+      email: ["security@school.com"]
+      telegram: ["SECURITY_CHAT_ID"]
+    cooldown_minutes: 15  # Avoid spam
+  
+  threats:
+    channels: ["email", "telegram", "sms"]
+    recipients:
+      email: ["principal@school.com", "security@school.com"]
+      telegram: ["PRINCIPAL_CHAT_ID", "SECURITY_CHAT_ID"]
+      sms: ["+1234567890"]
+    cooldown_minutes: 5
+
+# Storage Configuration
+storage:
+  alerts_retention_days: 90
+  video_clips_retention_days: 30
+  snapshots_path: "data/snapshots"
+  videos_path: "data/videos"
+  logs_path: "logs"
+
+# Performance Configuration
+performance:
+  frame_skip: 2  # Process every Nth frame
+  batch_size: 1
+  use_gpu: true
+  gpu_id: 0
+  num_workers: 4
+
