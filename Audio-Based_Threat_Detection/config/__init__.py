@@ -61,7 +61,7 @@ class ThreatKeywords:
     ]
     
     PROFANITY_SINHALA = [
-        "පකයා", "බල්ලා", "වේසි"
+         "බල්ලා"
     ]
 
 # Flask API Configuration
