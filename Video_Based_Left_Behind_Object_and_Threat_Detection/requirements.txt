@@ -36,11 +36,11 @@ flask-cors>=4.0.0
 # Notifications
 twilio>=8.5.0  # SMS notifications
 python-telegram-bot>=20.0  # Telegram notifications
-smtplib  # Email notifications (built-in)
+# smtplib is built-in, no need to install
 
 # Database
 sqlalchemy>=2.0.0
-sqlite3  # Built-in
+# sqlite3 is built-in, no need to install
 
 # Utilities
 python-dotenv>=1.0.0

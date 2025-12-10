@@ -86,5 +86,5 @@ htmlcov/
 .mypy_cache/
 
 #md files
-*.md
+
 

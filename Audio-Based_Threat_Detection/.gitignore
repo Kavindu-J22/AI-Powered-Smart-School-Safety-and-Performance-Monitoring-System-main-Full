@@ -1,4 +1,4 @@
-*.md # Documentation files
+
 *.pyc  # Python compiled files
 __pycache__/  # Python cache
 *.log  # Log files
