@@ -44,24 +44,70 @@ class ModelConfig:
 # Threat Keywords for Speech Detection
 class ThreatKeywords:
     ENGLISH_THREATS = [
-        "i'll hurt you", "i will hurt you", "kill", "murder", "die",
-        "attack", "shoot", "gun", "weapon", "bomb", "fight",
-        "beat you", "punch", "destroy", "help", "danger", "emergency",
-        "threat", "violence", "assault", "harm"
+    # Direct Violence/Killing/Harming
+    "i'll hurt you", "i will hurt you", "kill", "murder", "die",
+    "attack", "shoot", "bomb", "fight", "beat you", "punch", "destroy",
+    "harm", "violence", "assault", "stab", "choke", "strangle", "slaughter",
+    "massacre", "execute", "maim", "injure", "torture", "rape", "kidnap",
+    "suicide", "self-harm", "hang", "drown", "poison", "eliminate",
+    
+    # Weapons & Related Terms
+    "gun", "weapon", "knife", "blade", "sword", "firearm", "rifle", 
+    "pistol", "shotgun", "ammunition", "bullet", "grenade", "explosive", 
+    "device", "trigger", "detonate", "razor", "ax", "machete", "taser",
+    
+    # Intent/Planning/Specific Threats
+    "threat", "threatening", "intention to harm", "plan to attack", "gonna get you", 
+    "come for you", "watch your back", "payback", "revenge", "doomsday", 
+    "hostage", "terror", "jihad", "cult", "trap", "ambush", "blow up", 
+    "burn down", "destroy all",
+    
+    # Distress/Emergency/Seeking Help
+    "help", "danger", "emergency", "in trouble", "call police", "911", 
+    "fire", "medic", "ambulance", "save me", "distress", "panic"
     ]
     
     SINHALA_THREATS = [
-        "මරනවා", "ගහනවා", "මරන්න", "කපනවා", "වෙඩි",
-        "පහර", "බය", "අන්තරාය", "උදව්", "සටන",
-        "පිස්තෝලය", "බෝම්බය", "මරුගුල"
+    # Direct Violence/Killing/Harming
+    "මරනවා", "ගහනවා", "මරන්න", "කපනවා", "පහර", "සටන", 
+    "පොලු", "තලනවා", "අතවර", "පහරදීම", "ඝාතනය", "තුවාල", 
+    "වින්දනය", "විස", "දැවිල්ල", "පිළිස්සීම", "අල්ලා", 
+    "අල්ලාගෙන", "බැඳලා", "පන්නනවා", "ගෙල සිර", "දුක්", 
+    "නැතිකරනවා", "සමූලඝාතනය",
+    
+    # Weapons & Actions
+    "වෙඩි", "පිස්තෝලය", "බෝම්බය", "මරුගුල", "කඩු", 
+    "පිහිය", "තුවක්කුව", "ආයුධය", "පතරොම", "විසබීජ", 
+    "විස", "පිපිරීම", "පුපුරවනවා", "ගිනි",
+    
+    # Intent/Planning/Specific Threats
+    "බය", "තර්ජනය", "අන්තරාය", "අවදානම", "පලි", 
+    "කුමන්ත්‍රණය", "ඇටවුම්", "බිහිසුණු", "ත්‍රස්ත", 
+    "ප්‍රහාරය", "හමුදා", "පොලිසියට කියන්න",
+    
+    # Distress/Emergency/Seeking Help
+    "උදව්", "අවශ්‍යයි", "ගලවගන්න", "බේරගන්න", "ගිලන්", 
+    "ගිලන්රථ", "අමාරුවේ", "අසනීප", "මරණ"
     ]
     
     PROFANITY_ENGLISH = [
-        "damn", "hell", "bastard", "idiot", "stupid"
+    "damn", "hell", "bastard", "idiot", "stupid", "ass", "bitch", 
+    "crap", "fuck", "shit", "motherfucker", "cock", "pussy", 
+    "cunt", "arsehole", "wanker", "moron", "loser", "jerk", 
+    "douchebag", "prick", "slut", "whore", "tard", "nigger", 
+    "faggot", "scum", "trash", "suck", "sucks", "go to hell", 
+    "piss off", "bollocks", "shite"
     ]
     
     PROFANITY_SINHALA = [
-         "බල්ලා"
+     # General Insults/Slurs
+    "බල්ලා", "බල්ලි", "ගොනා", "මෝඩයා", "පිස්සා", 
+    "පිස්සු", "ලොන්ත", "වල්", "නපුරු", "බූරුවා", "හිපාට", "ගොබ්බයා",
+    
+    # Extreme Profanity (Direct Translations/Concepts)
+    "හුකනවා", "පොන්නයා", "ගූ", "කැරි",
+    "අම්මණ්ඩි", "කුපාඩි", "අසහන", "අවජාතක", "බැල්ලි", 
+    "නාකි", "බේබදු"
     ]
 
 # Flask API Configuration
