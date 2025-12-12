@@ -1,7 +1,5 @@
 """Models module"""
 
-from .object_detector import LeftBehindObjectDetector
-from .threat_detector import ThreatDetector
-
+# Lazy imports to avoid loading heavy dependencies at import time
 __all__ = ['LeftBehindObjectDetector', 'ThreatDetector']
 
