@@ -23,28 +23,28 @@ class AlertSystem:
     
     def __init__(
         self,
-        smtp_server: str,
-        smtp_port: int,
-        smtp_username: str,
-        smtp_password: str,
-        from_email: str
+        smtp_server: Optional[str] = None,
+        smtp_port: int = 587,
+        smtp_username: Optional[str] = None,
+        smtp_password: Optional[str] = None,
+        from_email: Optional[str] = None
     ):
         """
         Initialize alert system
-        
+
         Args:
-            smtp_server: SMTP server address
+            smtp_server: SMTP server address (optional for testing)
             smtp_port: SMTP port (usually 587 for TLS)
-            smtp_username: SMTP username
-            smtp_password: SMTP password
-            from_email: Sender email address
+            smtp_username: SMTP username (optional for testing)
+            smtp_password: SMTP password (optional for testing)
+            from_email: Sender email address (optional for testing)
         """
         self.smtp_server = smtp_server
         self.smtp_port = smtp_port
         self.smtp_username = smtp_username
         self.smtp_password = smtp_password
         self.from_email = from_email
-        
+
         # Alert cooldown tracking
         self.last_alert_times: Dict[str, datetime] = {}
         
@@ -57,16 +57,21 @@ class AlertSystem:
     ) -> bool:
         """
         Send email notification
-        
+
         Args:
             to_emails: List of recipient email addresses
             subject: Email subject
             body: Email body (HTML supported)
             image_path: Optional path to image attachment
-            
+
         Returns:
             True if successful
         """
+        # Check if SMTP is configured
+        if not self.smtp_server or not self.smtp_username or not self.smtp_password:
+            logger.warning("SMTP not configured, skipping email notification")
+            return False
+
         try:
             # Create message
             msg = MIMEMultipart()
