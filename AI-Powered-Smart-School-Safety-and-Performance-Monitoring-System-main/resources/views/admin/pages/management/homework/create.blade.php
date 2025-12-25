@@ -252,7 +252,10 @@
             ];
             question.correct_answer = document.getElementById('correctAnswer').value;
         } else {
-            question.answer_key = document.getElementById('modelAnswer').value.trim();
+            // For SHORT_ANSWER and DESCRIPTIVE, use expected_answer (consistent with AI generation)
+            const modelAnswer = document.getElementById('modelAnswer').value.trim();
+            question.expected_answer = modelAnswer;
+            question.answer_key = modelAnswer; // Keep for backward compatibility
         }
 
         questions.push(question);
@@ -306,21 +309,66 @@
         if (questions.length === 0) {
             container.innerHTML = '<div class="alert alert-info">No questions added yet. Generate questions from a lesson or add manually.</div>';
         } else {
-            container.innerHTML = questions.map((q, i) => `
-            <div class="card mb-2">
-                <div class="card-body d-flex justify-content-between align-items-start">
-                    <div>
-                        <span class="badge bg-${q.question_type === 'MCQ' ? 'info' : q.question_type === 'SHORT_ANSWER' ? 'warning' : 'success'}">${q.question_type}</span>
-                        <span class="badge bg-secondary">${q.marks} marks</span>
-                        <p class="mt-2 mb-0"><strong>Q${i+1}:</strong> ${q.question_text}</p>
-                        ${q.options ? '<ul class="mb-0 mt-2">' + q.options.map((o, j) => `<li>${String.fromCharCode(65+j)}. ${o} ${q.correct_answer === String.fromCharCode(65+j) ? '<span class="badge bg-success">✓</span>' : ''}</li>`).join('') + '</ul>' : ''}
+            container.innerHTML = questions.map((q, i) => {
+                let answerSection = '';
+
+                // Render answer section based on question type
+                if (q.question_type === 'MCQ') {
+                    // MCQ: Show options with correct answer marked
+                    if (q.options) {
+                        answerSection = '<ul class="mb-0 mt-2">' +
+                            q.options.map((o, j) => {
+                                const optionLetter = String.fromCharCode(65 + j);
+                                const isCorrect = q.correct_answer === optionLetter;
+                                return `<li>${optionLetter}. ${o} ${isCorrect ? '<span class="badge bg-success">✓ Correct</span>' : ''}</li>`;
+                            }).join('') +
+                            '</ul>';
+                    }
+                    // Show explanation if available
+                    if (q.explanation) {
+                        answerSection += `<div class="mt-2"><small class="text-muted"><strong>Explanation:</strong> ${q.explanation}</small></div>`;
+                    }
+                } else if (q.question_type === 'SHORT_ANSWER' || q.question_type === 'DESCRIPTIVE') {
+                    // SHORT_ANSWER and DESCRIPTIVE: Show expected answer and key points
+                    if (q.expected_answer || q.answer_key) {
+                        const answer = q.expected_answer || q.answer_key;
+                        answerSection = `<div class="mt-2 p-2 bg-light rounded">
+                            <strong class="text-success">Expected Answer:</strong>
+                            <p class="mb-0 mt-1 text-sm">${answer}</p>
+                        </div>`;
+                    }
+                    // Show key points if available
+                    if (q.key_points && Array.isArray(q.key_points) && q.key_points.length > 0) {
+                        answerSection += `<div class="mt-2">
+                            <strong class="text-info">Key Points:</strong>
+                            <ul class="mb-0 mt-1">
+                                ${q.key_points.map(point => `<li class="text-sm">${point}</li>`).join('')}
+                            </ul>
+                        </div>`;
+                    }
+                }
+
+                return `
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="mb-2">
+                                    <span class="badge bg-${q.question_type === 'MCQ' ? 'info' : q.question_type === 'SHORT_ANSWER' ? 'warning' : 'success'}">${q.question_type}</span>
+                                    <span class="badge bg-secondary">${q.marks} marks</span>
+                                    ${q.difficulty ? `<span class="badge bg-dark">${q.difficulty}</span>` : ''}
+                                </div>
+                                <p class="mt-2 mb-2"><strong>Q${i+1}:</strong> ${q.question_text}</p>
+                                ${answerSection}
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="removeQuestion(${i})">
+                                <i class="material-symbols-outlined">delete</i>
+                            </button>
+                        </div>
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeQuestion(${i})">
-                        <i class="material-symbols-outlined">delete</i>
-                    </button>
                 </div>
-            </div>
-        `).join('');
+                `;
+            }).join('');
         }
         document.getElementById('questionsCount').textContent = `(${questions.length})`;
         document.getElementById('questionsInput').value = JSON.stringify(questions);

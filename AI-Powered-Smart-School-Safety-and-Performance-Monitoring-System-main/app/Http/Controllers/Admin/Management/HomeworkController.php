@@ -147,8 +147,20 @@ class HomeworkController extends Controller
             'questions' => 'nullable|array',
         ]);
 
-        // Recalculate total marks if questions changed
+        // Process questions: convert key_points from string to array if needed
         if (isset($validated['questions'])) {
+            foreach ($validated['questions'] as &$question) {
+                // Convert key_points from newline-separated string to array
+                if (isset($question['key_points']) && is_string($question['key_points'])) {
+                    $question['key_points'] = array_filter(
+                        array_map('trim', explode("\n", $question['key_points'])),
+                        fn($point) => !empty($point)
+                    );
+                }
+            }
+            unset($question); // Break reference
+
+            // Recalculate total marks
             $validated['total_marks'] = collect($validated['questions'])->sum('marks');
         }
 

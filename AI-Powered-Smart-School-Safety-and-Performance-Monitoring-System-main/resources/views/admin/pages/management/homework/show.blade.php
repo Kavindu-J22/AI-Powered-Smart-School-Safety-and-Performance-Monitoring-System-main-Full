@@ -81,10 +81,14 @@
                                         {{ $question['question_type'] }}
                                     </span>
                                     <span class="badge bg-secondary">{{ $question['marks'] }} marks</span>
+                                    @if(isset($question['difficulty']))
+                                    <span class="badge bg-dark">{{ $question['difficulty'] }}</span>
+                                    @endif
                                 </div>
                             </div>
                             <p class="mt-2 mb-2"><strong>Q{{ $index + 1 }}:</strong> {{ $question['question_text'] }}</p>
-                            
+
+                            {{-- MCQ: Show options with correct answer --}}
                             @if(isset($question['options']) && is_array($question['options']))
                             <ul class="mb-0">
                                 @foreach($question['options'] as $optIndex => $option)
@@ -96,10 +100,32 @@
                                 </li>
                                 @endforeach
                             </ul>
+                            @if(isset($question['explanation']))
+                            <div class="mt-2">
+                                <small class="text-muted"><strong>Explanation:</strong> {{ $question['explanation'] }}</small>
+                            </div>
+                            @endif
                             @endif
 
-                            @if(isset($question['answer_key']))
-                            <p class="mt-2 mb-0 text-muted"><small><strong>Model Answer:</strong> {{ $question['answer_key'] }}</small></p>
+                            {{-- SHORT_ANSWER and DESCRIPTIVE: Show expected answer and key points --}}
+                            @if(($question['question_type'] === 'SHORT_ANSWER' || $question['question_type'] === 'DESCRIPTIVE'))
+                            @if(isset($question['expected_answer']) || isset($question['answer_key']))
+                            <div class="mt-2 p-2 bg-light rounded">
+                                <strong class="text-success">Expected Answer:</strong>
+                                <p class="mb-0 mt-1 text-sm">{{ $question['expected_answer'] ?? $question['answer_key'] }}</p>
+                            </div>
+                            @endif
+
+                            @if(isset($question['key_points']) && is_array($question['key_points']) && count($question['key_points']) > 0)
+                            <div class="mt-2">
+                                <strong class="text-info">Key Points:</strong>
+                                <ul class="mb-0 mt-1">
+                                    @foreach($question['key_points'] as $point)
+                                    <li class="text-sm">{{ $point }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                            @endif
                             @endif
                         </div>
                     </div>
@@ -151,4 +177,3 @@
     </div>
 </div>
 @endsection
-

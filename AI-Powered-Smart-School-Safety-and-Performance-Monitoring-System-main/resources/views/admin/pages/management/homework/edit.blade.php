@@ -19,7 +19,7 @@
                     <form action="{{ route('admin.management.homework.update', $homework->homework_id) }}" method="POST" id="homeworkForm">
                         @csrf
                         @method('PUT')
-                        
+
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Homework Title <span class="text-danger">*</span></label>
@@ -42,8 +42,8 @@
                                 <label class="form-label">Grade Level</label>
                                 <select name="grade_level" class="form-control" required>
                                     @for($i = 6; $i <= 11; $i++)
-                                    <option value="{{ $i }}" {{ $homework->grade_level == $i ? 'selected' : '' }}>Grade {{ $i }}</option>
-                                    @endfor
+                                        <option value="{{ $i }}" {{ $homework->grade_level == $i ? 'selected' : '' }}>Grade {{ $i }}</option>
+                                        @endfor
                                 </select>
                             </div>
                             <div class="col-md-4 mb-3">
@@ -59,7 +59,7 @@
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label">Due Date</label>
-                                <input type="date" name="due_date" class="form-control" 
+                                <input type="date" name="due_date" class="form-control"
                                     value="{{ $homework->due_date ? $homework->due_date->format('Y-m-d') : '' }}" required>
                             </div>
                         </div>
@@ -83,7 +83,7 @@
 
                         <!-- Questions Section -->
                         <h6 class="mb-3">Questions ({{ count($homework->questions ?? []) }})</h6>
-                        
+
                         <div id="questionsContainer">
                             @forelse($homework->questions ?? [] as $index => $question)
                             <div class="card mb-3 border question-card" data-index="{{ $index }}">
@@ -124,6 +124,24 @@
                                             @endforeach
                                         </select>
                                     </div>
+                                    @if(isset($question['explanation']))
+                                    <div class="mb-2">
+                                        <label class="form-label">Explanation</label>
+                                        <textarea name="questions[{{ $index }}][explanation]" class="form-control" rows="2">{{ $question['explanation'] }}</textarea>
+                                    </div>
+                                    @endif
+                                    @elseif($question['question_type'] === 'SHORT_ANSWER' || $question['question_type'] === 'DESCRIPTIVE')
+                                    <div class="mb-2">
+                                        <label class="form-label">Expected Answer / Model Answer</label>
+                                        <textarea name="questions[{{ $index }}][expected_answer]" class="form-control" rows="3">{{ $question['expected_answer'] ?? $question['answer_key'] ?? '' }}</textarea>
+                                    </div>
+                                    @if(isset($question['key_points']) && is_array($question['key_points']))
+                                    <div class="mb-2">
+                                        <label class="form-label">Key Points (one per line)</label>
+                                        <textarea name="questions[{{ $index }}][key_points]" class="form-control" rows="3">{{ implode("\n", $question['key_points']) }}</textarea>
+                                        <small class="text-muted">Enter each key point on a new line</small>
+                                    </div>
+                                    @endif
                                     @endif
                                 </div>
                             </div>
@@ -151,10 +169,9 @@
 
 @push('scripts')
 <script>
-function removeQuestion(index) {
-    document.querySelector(`.question-card[data-index="${index}"]`).remove();
-}
+    function removeQuestion(index) {
+        document.querySelector(`.question-card[data-index="${index}"]`).remove();
+    }
 </script>
 @endpush
 @endsection
-

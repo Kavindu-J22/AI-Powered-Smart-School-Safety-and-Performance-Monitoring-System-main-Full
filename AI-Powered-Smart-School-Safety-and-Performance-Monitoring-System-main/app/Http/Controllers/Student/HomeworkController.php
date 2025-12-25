@@ -176,7 +176,10 @@ class HomeworkController extends Controller
         try {
             $results = $this->aiService->evaluateSubmission($questions, $answers);
 
-            $submission->evaluation_results = $results['results'] ?? [];
+            // Transform results to be indexed by question_idx for easy access in views
+            $transformedResults = $this->transformEvaluationResults($results['results'] ?? []);
+
+            $submission->evaluation_results = $transformedResults;
             $submission->marks_obtained = $results['summary']['marks_obtained'] ?? 0;
             $submission->percentage = $results['summary']['percentage'] ?? 0;
             $submission->grade = $results['summary']['grade'] ?? 'F';
@@ -186,10 +189,35 @@ class HomeworkController extends Controller
             $submission->save();
         } catch (\Exception $e) {
             \Log::error('Auto-grading failed: ' . $e->getMessage());
+            \Log::error('Error details: ' . $e->getTraceAsString());
             // Still mark as submitted even if grading fails
             $submission->status = 'submitted';
             $submission->save();
         }
+    }
+
+    /**
+     * Transform evaluation results from API format to indexed array
+     */
+    protected function transformEvaluationResults(array $results): array
+    {
+        $transformed = [];
+
+        foreach ($results as $result) {
+            $questionIdx = $result['question_idx'] ?? 0;
+            $evaluation = $result['evaluation'] ?? [];
+
+            // Flatten the structure and add marks_awarded alias
+            $transformed[$questionIdx] = array_merge($evaluation, [
+                'marks_awarded' => $evaluation['marks_obtained'] ?? 0,
+                'is_partial' => isset($evaluation['percentage']) &&
+                    $evaluation['percentage'] > 0 &&
+                    $evaluation['percentage'] < 100 &&
+                    !($evaluation['is_correct'] ?? false)
+            ]);
+        }
+
+        return $transformed;
     }
 
     /**

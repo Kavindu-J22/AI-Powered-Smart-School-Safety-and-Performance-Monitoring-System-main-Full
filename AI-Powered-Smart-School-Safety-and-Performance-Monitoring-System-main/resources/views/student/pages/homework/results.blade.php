@@ -210,7 +210,13 @@
                                         </div>
                                     </div>
                                     <div class="col-md-6 mb-3">
-                                        <p class="text-sm text-muted mb-1">Correct Answer:</p>
+                                        <p class="text-sm text-muted mb-1">
+                                            @if($questionType === 'MCQ')
+                                            Correct Answer:
+                                            @else
+                                            Expected Answer:
+                                            @endif
+                                        </p>
                                         <div class="correct-answer-badge">
                                             @if($questionType === 'MCQ')
                                             @php
@@ -219,16 +225,35 @@
                                             @endphp
                                             <strong>{{ $correct }}:</strong> {{ $correctOptionText }}
                                             @else
-                                            {{ $question['correct_answer'] ?? $question['model_answer'] ?? 'N/A' }}
+                                            {{ $question['expected_answer'] ?? $question['correct_answer'] ?? $question['model_answer'] ?? 'N/A' }}
                                             @endif
                                         </div>
                                     </div>
                                 </div>
 
                                 @if(isset($result['feedback']) && $result['feedback'])
-                                <div class="alert alert-info mb-0 mt-2">
+                                <div class="alert alert-info mb-2">
                                     <i class="material-symbols-rounded me-1">lightbulb</i>
                                     <strong>Feedback:</strong> {{ $result['feedback'] }}
+                                </div>
+                                @endif
+
+                                @if($questionType === 'MCQ' && isset($result['explanation']) && $result['explanation'])
+                                <div class="alert alert-secondary mb-2">
+                                    <i class="material-symbols-rounded me-1">info</i>
+                                    <strong>Explanation:</strong> {{ $result['explanation'] }}
+                                </div>
+                                @endif
+
+                                @if(in_array($questionType, ['SHORT_ANSWER', 'DESCRIPTIVE']) && isset($question['key_points']) && is_array($question['key_points']))
+                                <div class="alert alert-light mb-0">
+                                    <i class="material-symbols-rounded me-1">checklist</i>
+                                    <strong>Key Points to Cover:</strong>
+                                    <ul class="mb-0 mt-2">
+                                        @foreach($question['key_points'] as $point)
+                                        <li>{{ $point }}</li>
+                                        @endforeach
+                                    </ul>
                                 </div>
                                 @endif
                             </div>
