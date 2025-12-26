@@ -18,8 +18,8 @@
 // ==================== CONFIGURATION ====================
 
 // WiFi Credentials
-const char *ssid = "YOUR_WIFI_SSID";
-const char *password = "YOUR_WIFI_PASSWORD";
+const char *ssid = "Dialog_4G_739";
+const char *password = "18dDFFFF";
 
 // Camera Configuration
 const char *camera_id = "CAM_001";
