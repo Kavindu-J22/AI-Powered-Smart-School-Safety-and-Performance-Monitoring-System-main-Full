@@ -61,4 +61,17 @@ return [
         'timeout' => env('AUDIO_THREAT_TIMEOUT', 30),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Video Threat Detection Service
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for the Video-Based Left-Behind Object and Threat Detection Flask API
+    |
+    */
+    'video_threat' => [
+        'url' => env('VIDEO_THREAT_API_URL', 'http://127.0.0.1:5003'),
+        'timeout' => env('VIDEO_THREAT_TIMEOUT', 30),
+    ],
+
 ];

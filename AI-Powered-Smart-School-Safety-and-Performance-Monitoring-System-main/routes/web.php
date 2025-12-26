@@ -116,6 +116,15 @@ Route::middleware(['auth'])->group(function () {
                 Route::post('/enroll', 'enroll')->name('enroll');
             });
 
+            // Video Threat Detection
+            Route::prefix('video-threat')->name('video-threat.')->controller(\App\Http\Controllers\Admin\Management\VideoThreatController::class)->group(function () {
+                Route::get('/', 'dashboard')->name('dashboard');
+                Route::get('/status', 'status')->name('status');
+                Route::post('/detect-objects', 'detectObjects')->name('detect-objects');
+                Route::post('/detect-threats', 'detectThreats')->name('detect-threats');
+                Route::post('/process-frame', 'processFrame')->name('process-frame');
+            });
+
             // Timetables Management
             Route::prefix('timetables')->name('timetables.')->controller(TimetableController::class)->group(function () {
                 Route::get('/', 'index')->name('index');
