@@ -5,10 +5,15 @@ Flask application for real-time audio analysis
 """
 import os
 import sys
+import warnings
 from flask import jsonify
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Suppress warnings for cleaner logs
+warnings.filterwarnings('ignore', category=UserWarning)
+warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 # Configure FFmpeg path for pydub (Windows)
 import glob
@@ -30,6 +35,12 @@ for ffmpeg_path in ffmpeg_paths:
         break
 else:
     print("⚠️ FFmpeg not found in common locations. Audio format support may be limited.")
+
+# Suppress FFmpeg/pydub verbose output
+os.environ['PYDUB_FFMPEG_SILENCE'] = '1'
+# Redirect FFmpeg stderr to null to suppress format detection errors
+if sys.platform == 'win32':
+    os.environ['FFMPEG_HIDE_BANNER'] = '1'
 
 from api import create_app
 from config import FlaskConfig

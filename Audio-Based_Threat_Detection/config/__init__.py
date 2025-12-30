@@ -125,7 +125,7 @@ class NoiseConfig:
     ADAPTIVE_THRESHOLD = True
     NOISE_FLOOR_SAMPLES = 50
     NOISE_UPDATE_INTERVAL = 10  # seconds
-    SNR_MINIMUM = 10  # dB
+    SNR_MINIMUM = 12  # dB - Increased from 10 to reduce false positives from ambient noise
 
 # Create directories
 os.makedirs(MODELS_DIR, exist_ok=True)

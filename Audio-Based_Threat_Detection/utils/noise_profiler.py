@@ -20,6 +20,7 @@ class NoiseProfiler:
         self.current_noise_spectrum = None
         self.is_calibrated = False
         self.snr_minimum = NoiseConfig.SNR_MINIMUM
+        self.noise_floor_percentile = 75  # Use 75th percentile instead of median for more robust noise estimation
     
     def update_noise_profile(self, audio: np.ndarray) -> None:
         """Update noise profile with new ambient audio sample"""
@@ -41,13 +42,15 @@ class NoiseProfiler:
     def _recalculate_noise_floor(self) -> None:
         """Recalculate noise floor from collected samples"""
         energies = [s['energy'] for s in self.noise_samples]
-        self.current_noise_floor = np.median(energies)
-        
-        # Average spectrum
+        # Use percentile instead of median for more robust noise estimation
+        # This helps ignore occasional loud noises in the noise samples
+        self.current_noise_floor = np.percentile(energies, self.noise_floor_percentile)
+
+        # Average spectrum using percentile
         spectrums = [s['spectrum'] for s in self.noise_samples]
         min_len = min(len(s) for s in spectrums)
         spectrums = [s[:min_len] for s in spectrums]
-        self.current_noise_spectrum = np.median(np.array(spectrums), axis=0)
+        self.current_noise_spectrum = np.percentile(np.array(spectrums), self.noise_floor_percentile, axis=0)
     
     def denoise_audio(self, audio: np.ndarray) -> np.ndarray:
         """Apply spectral subtraction for noise reduction"""
@@ -107,12 +110,13 @@ class NoiseProfiler:
         """Get adaptive detection threshold based on noise level"""
         if not self.is_calibrated or self.current_noise_floor is None:
             return base_threshold
-        
-        # Increase threshold in noisy environments
-        noise_factor = min(self.current_noise_floor * 10, 1.5)
-        adaptive_threshold = base_threshold * (1 + noise_factor * 0.2)
-        
-        return min(adaptive_threshold, 0.95)  # Cap at 95%
+
+        # Increase threshold MORE aggressively in noisy environments
+        # This prevents false positives from ambient noise like fans, AC, etc.
+        noise_factor = min(self.current_noise_floor * 15, 2.0)  # Increased from 10 to 15, cap from 1.5 to 2.0
+        adaptive_threshold = base_threshold * (1 + noise_factor * 0.35)  # Increased from 0.2 to 0.35
+
+        return min(adaptive_threshold, 0.98)  # Cap at 98% (increased from 95%)
     
     def reset(self) -> None:
         """Reset noise profile"""

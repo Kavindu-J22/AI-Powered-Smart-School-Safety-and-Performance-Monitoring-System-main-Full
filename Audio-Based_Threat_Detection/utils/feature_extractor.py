@@ -81,11 +81,12 @@ class FeatureExtractor:
         # Convert to tensor
         waveform = torch.FloatTensor(audio)
 
-        # Compute spectrogram
+        # Compute spectrogram with Hann window to reduce spectral leakage
         spectrogram = torch.stft(
             waveform,
             n_fft=self.n_fft,
             hop_length=self.hop_length,
+            window=torch.hann_window(self.n_fft),
             return_complex=True
         )
         magnitude = torch.abs(spectrogram).numpy()

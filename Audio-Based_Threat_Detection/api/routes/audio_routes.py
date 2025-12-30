@@ -10,10 +10,16 @@ import os
 import sys
 import struct
 import traceback
+import warnings
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from utils.audio_processor import AudioProcessor
+from utils.audio_decoder import decode_audio_smart, detect_audio_format
 from models.threat_detector import ThreatDetector
+
+# Suppress pydub/FFmpeg warnings for cleaner logs
+warnings.filterwarnings('ignore', category=RuntimeWarning, module='pydub')
+os.environ['PYDUB_FFMPEG_SILENCE'] = '1'
 
 audio_bp = Blueprint('audio', __name__)
 
@@ -23,63 +29,30 @@ threat_detector = ThreatDetector()
 
 
 def decode_audio_from_base64(base64_data: str, audio_format: str = 'auto', sample_rate: int = 16000) -> np.ndarray:
-    """Decode audio from base64 - handles multiple formats"""
+    """Decode audio from base64 - handles multiple formats with smart detection and silent FFmpeg"""
     # Remove data URL prefix if present
     if ',' in base64_data:
         base64_data = base64_data.split(',')[1]
 
     audio_bytes = base64.b64decode(base64_data)
-    print(f"[Audio] Received {len(audio_bytes)} bytes, format: {audio_format}")
 
-    # Handle raw PCM16 format (from JavaScript)
+    # Handle raw PCM16 format (from JavaScript) - PRIORITY 1
     if audio_format == 'pcm16':
         audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
         audio = audio_array.astype(np.float32) / 32768.0
         duration = len(audio) / sample_rate
-        print(f"[Audio] Decoded PCM16: {len(audio)} samples, {duration:.2f}s")
+        print(f"[Audio] ✓ PCM16: {len(audio)} samples ({duration:.2f}s)")
         return audio
 
-    # Try pydub for WebM (browser format) - requires FFmpeg
+    # Use smart decoder (silent FFmpeg)
     try:
-        from pydub import AudioSegment
-        audio_buffer = io.BytesIO(audio_bytes)
-        audio_segment = AudioSegment.from_file(audio_buffer, format="webm")
-        audio_segment = audio_segment.set_frame_rate(16000).set_channels(1)
-        samples = np.array(audio_segment.get_array_of_samples(), dtype=np.float32)
-        audio = samples / 32768.0
-        print(f"[Audio] Decoded with pydub: {len(audio)} samples, {len(audio)/16000:.2f}s")
+        detected_format = detect_audio_format(audio_bytes)
+        audio = decode_audio_smart(audio_bytes, sample_rate)
+        duration = len(audio) / sample_rate
+        print(f"[Audio] ✓ {detected_format.upper()}: {len(audio)} samples ({duration:.2f}s)")
         return audio
     except Exception as e:
-        print(f"[Audio] pydub failed: {e}")
-
-    # Try soundfile
-    try:
-        import soundfile as sf
-        audio_buffer = io.BytesIO(audio_bytes)
-        audio, sr = sf.read(audio_buffer)
-        if len(audio.shape) > 1:
-            audio = audio.mean(axis=1)  # Convert to mono
-        if sr != 16000:
-            import torchaudio
-            import torch
-            waveform = torch.FloatTensor(audio).unsqueeze(0)
-            resampler = torchaudio.transforms.Resample(sr, 16000)
-            audio = resampler(waveform).squeeze().numpy()
-        print(f"[Audio] Decoded with soundfile: {len(audio)} samples, {len(audio)/16000:.2f}s")
-        return audio.astype(np.float32)
-    except Exception as e:
-        print(f"[Audio] soundfile failed: {e}")
-
-    # Try parsing as raw PCM (fallback)
-    try:
-        audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
-        audio = audio_array.astype(np.float32) / 32768.0
-        print(f"[Audio] Decoded as raw PCM: {len(audio)} samples")
-        return audio
-    except Exception as e:
-        print(f"[Audio] Raw PCM failed: {e}")
-
-    raise Exception("Could not decode audio - ensure FFmpeg is installed")
+        raise Exception(f"Audio decode failed: {str(e)}")
 
 
 @audio_bp.route('/health', methods=['GET'])

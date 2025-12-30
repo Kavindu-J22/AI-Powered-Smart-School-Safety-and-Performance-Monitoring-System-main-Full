@@ -118,7 +118,7 @@ class NonSpeechThreatModel:
     def train(self, X_train: np.ndarray, y_train: np.ndarray,
               X_val: np.ndarray = None, y_val: np.ndarray = None,
               epochs: int = None, batch_size: int = None) -> dict:
-        """Train the model"""
+        """Train the model with class balancing and label smoothing"""
         if self.model is None:
             self.build_model()
 
@@ -127,7 +127,8 @@ class NonSpeechThreatModel:
 
         # Convert to tensors
         X_train_t = torch.FloatTensor(X_train).to(self.device)
-        y_train_t = torch.LongTensor(np.argmax(y_train, axis=1)).to(self.device)
+        y_train_labels = np.argmax(y_train, axis=1)
+        y_train_t = torch.LongTensor(y_train_labels).to(self.device)
 
         train_dataset = TensorDataset(X_train_t, y_train_t)
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
@@ -136,8 +137,19 @@ class NonSpeechThreatModel:
             X_val_t = torch.FloatTensor(X_val).to(self.device)
             y_val_t = torch.LongTensor(np.argmax(y_val, axis=1)).to(self.device)
 
-        criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(self.model.parameters(), lr=ModelConfig.LEARNING_RATE)
+        # Calculate class weights to handle imbalanced data
+        class_counts = np.bincount(y_train_labels)
+        total_samples = len(y_train_labels)
+        class_weights = total_samples / (len(class_counts) * class_counts)
+        class_weights = torch.FloatTensor(class_weights).to(self.device)
+
+        print(f"\nClass distribution:")
+        for i, (cls, count) in enumerate(zip(self.classes, class_counts)):
+            print(f"  {cls:20s}: {count:4d} samples (weight: {class_weights[i]:.3f})")
+
+        # Use weighted CrossEntropyLoss with label smoothing
+        criterion = nn.CrossEntropyLoss(weight=class_weights, label_smoothing=0.1)
+        optimizer = optim.Adam(self.model.parameters(), lr=ModelConfig.LEARNING_RATE, weight_decay=1e-4)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
 
         history = {'loss': [], 'accuracy': [], 'val_loss': [], 'val_accuracy': []}

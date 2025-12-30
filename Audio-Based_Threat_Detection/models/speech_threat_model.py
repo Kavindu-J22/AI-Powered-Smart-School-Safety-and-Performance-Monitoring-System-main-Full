@@ -34,9 +34,11 @@ class SpeechThreatDetector:
         if SPEECH_RECOGNITION_AVAILABLE:
             self.recognizer = sr.Recognizer()
             # Adjust recognizer settings for better accuracy
-            self.recognizer.energy_threshold = 300  # Minimum audio energy to consider
+            self.recognizer.energy_threshold = 200  # Lowered from 300 for better sensitivity
             self.recognizer.dynamic_energy_threshold = True  # Auto-adjust
-            self.recognizer.pause_threshold = 0.8  # Seconds of pause before phrase end
+            self.recognizer.pause_threshold = 0.6  # Reduced from 0.8 for faster response
+            self.recognizer.phrase_threshold = 0.3  # Minimum seconds of speaking audio before phrase
+            self.recognizer.non_speaking_duration = 0.5  # Seconds of non-speaking audio to keep on both sides
 
         self.vosk_model = None
         self.english_threats = [t.lower() for t in ThreatKeywords.ENGLISH_THREATS]
@@ -80,44 +82,62 @@ class SpeechThreatDetector:
                 audio_bytes = audio_int16.tobytes()
                 audio = sr.AudioData(audio_bytes, sample_rate, 2)  # 2 bytes per sample
 
-                # Try English
+                # Try BOTH English and Sinhala in parallel for better detection
+                english_text = None
+                sinhala_text = None
+
+                # Try English first
                 try:
-                    text = self.recognizer.recognize_google(audio, language='en-US')
-                    if text:
+                    english_text = self.recognizer.recognize_google(audio, language='en-US', show_all=False)
+                    if english_text:
                         results = {
-                            'text': text,
+                            'text': english_text,
                             'language': 'english',
                             'confidence': 0.85,
                             'engine': 'google',
                             'error': None
                         }
-                        print(f"[Speech] Transcribed: '{text}'")  # Debug log
+                        print(f"[Speech] Transcribed (English): '{english_text}'")
                 except sr.UnknownValueError:
-                    results['error'] = 'Could not understand audio'
+                    pass  # Try Sinhala
                 except sr.RequestError as e:
                     results['error'] = f'Google API error: {str(e)}'
                 except Exception as e:
                     results['error'] = f'English transcription failed: {str(e)}'
 
-                # Try Sinhala if English failed or returned empty
-                if not results['text']:
-                    try:
-                        text = self.recognizer.recognize_google(audio, language='si-LK')
-                        if text:
+                # Try Sinhala (always try, even if English succeeded, to catch mixed language)
+                try:
+                    sinhala_text = self.recognizer.recognize_google(audio, language='si-LK', show_all=False)
+                    if sinhala_text:
+                        # If we got both, combine them
+                        if english_text:
+                            combined_text = f"{english_text} {sinhala_text}"
                             results = {
-                                'text': text,
-                                'language': 'sinhala',
+                                'text': combined_text,
+                                'language': 'mixed',
                                 'confidence': 0.8,
                                 'engine': 'google',
                                 'error': None
                             }
-                            print(f"[Speech] Transcribed (Sinhala): '{text}'")
-                    except sr.UnknownValueError:
-                        pass  # Already tried English
-                    except sr.RequestError:
-                        pass  # Already logged
-                    except Exception:
-                        pass
+                            print(f"[Speech] Transcribed (Mixed): '{combined_text}'")
+                        else:
+                            results = {
+                                'text': sinhala_text,
+                                'language': 'sinhala',
+                                'confidence': 0.82,  # Slightly higher confidence for Sinhala
+                                'engine': 'google',
+                                'error': None
+                            }
+                            print(f"[Speech] Transcribed (Sinhala): '{sinhala_text}'")
+                except sr.UnknownValueError:
+                    if not english_text:
+                        results['error'] = 'Could not understand audio in English or Sinhala'
+                except sr.RequestError as e:
+                    if not english_text:
+                        results['error'] = f'Google API error: {str(e)}'
+                except Exception as e:
+                    if not english_text:
+                        results['error'] = f'Sinhala transcription failed: {str(e)}'
             except Exception as e:
                 results['error'] = f'Speech recognition error: {str(e)}'
         else:
@@ -160,33 +180,44 @@ class SpeechThreatDetector:
         # Check English threats - use word boundary matching for better accuracy
         for threat in self.english_threats:
             threat_lower = threat.lower()
-            # Check if threat phrase exists in text
-            if threat_lower in text_lower:
-                detected_keywords.append({'keyword': threat, 'type': 'threat', 'language': 'english'})
-                # Higher score for severe threats
-                if any(word in threat_lower for word in ['kill', 'murder', 'die', 'shoot', 'gun', 'bomb']):
-                    threat_score += 0.5
-                else:
-                    threat_score += 0.3
+            # Use word boundaries for single words, substring match for phrases
+            if ' ' in threat_lower:
+                # Multi-word phrase - use substring match
+                if threat_lower in text_lower:
+                    detected_keywords.append({'keyword': threat, 'type': 'threat', 'language': 'english'})
+                    # Higher score for severe threats
+                    if any(word in threat_lower for word in ['kill', 'murder', 'die', 'shoot', 'gun', 'bomb']):
+                        threat_score += 0.5
+                    else:
+                        threat_score += 0.3
+            else:
+                # Single word - use word boundary
+                if re.search(r'\b' + re.escape(threat_lower) + r'\b', text_lower):
+                    detected_keywords.append({'keyword': threat, 'type': 'threat', 'language': 'english'})
+                    if any(word in threat_lower for word in ['kill', 'murder', 'die', 'shoot', 'gun', 'bomb']):
+                        threat_score += 0.5
+                    else:
+                        threat_score += 0.3
 
-        # Also check individual dangerous words
+        # Also check individual dangerous words with word boundaries
         dangerous_words = ['kill', 'murder', 'shoot', 'gun', 'bomb', 'weapon', 'stab', 'hurt', 'attack']
         for word in dangerous_words:
-            if word in text_lower and not any(word in kw['keyword'].lower() for kw in detected_keywords):
+            if re.search(r'\b' + re.escape(word) + r'\b', text_lower) and not any(word in kw['keyword'].lower() for kw in detected_keywords):
                 detected_keywords.append({'keyword': word, 'type': 'threat', 'language': 'english'})
                 threat_score += 0.4
 
-        # Check English profanity
+        # Check English profanity with word boundaries
         for profanity in self.english_profanity:
-            if profanity in text_lower:
+            if re.search(r'\b' + re.escape(profanity) + r'\b', text_lower):
                 detected_keywords.append({'keyword': profanity, 'type': 'profanity', 'language': 'english'})
                 threat_score += 0.15
 
-        # Check Sinhala threats
+        # Check Sinhala threats - use substring matching (Sinhala doesn't have clear word boundaries)
         for threat in self.sinhala_threats:
             if threat in text:
                 detected_keywords.append({'keyword': threat, 'type': 'threat', 'language': 'sinhala'})
-                threat_score += 0.4
+                # Higher score for Sinhala threats (they're more specific)
+                threat_score += 0.45
 
         # Check Sinhala profanity
         for profanity in self.sinhala_profanity:
