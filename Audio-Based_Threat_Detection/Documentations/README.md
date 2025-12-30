@@ -139,6 +139,40 @@ This directory contains comprehensive documentation for the Audio Threat Detecti
 
 ---
 
+### 8. **🎤 Speech-to-Text Integration** (`SPEECH_TO_TEXT_INTEGRATION.md`)
+
+**Topics Covered**:
+- Available STT engines (Google, Vosk, Whisper, Azure)
+- Current implementation details
+- How to add new STT engines (step-by-step)
+- Configuration and keyword management
+- Testing and troubleshooting
+
+**Engines Documented**:
+- Google Speech Recognition (active)
+- Vosk (offline fallback)
+- Whisper (recommended to add)
+- Azure Speech Services (enterprise option)
+
+**Read this if**: You need to understand speech-to-text capabilities, add new STT engines, or customize threat keywords.
+
+---
+
+### 9. **🔗 Laravel to ML Server Connection** (`LARAVEL_TO_ML_SERVER_CONNECTION.md`)
+
+**Topics Covered**:
+- Architecture overview (Frontend → Laravel → ML Server)
+- Step-by-step connection setup
+- File locations and configuration
+- Testing the connection
+- Troubleshooting common issues
+
+**For**: Non-PHP developers who need to understand how Laravel connects to the Python ML server
+
+**Read this if**: You need to set up the connection, troubleshoot connection issues, or deploy on different servers.
+
+---
+
 ## 🗂️ Document Organization
 
 ```
@@ -151,7 +185,9 @@ Audio-Based_Threat_Detection/
 │   ├── FILES_AND_FUNCTIONS_INDEX.md        ← Code reference
 │   ├── CALIBRATION_EXPLAINED.md            ← Calibration details
 │   ├── CALIBRATION_QUICK_GUIDE.md          ← Quick reference
-│   └── MODEL_OVERFITTING_FIX.md            ← Model fixes
+│   ├── MODEL_OVERFITTING_FIX.md            ← Model fixes
+│   ├── SPEECH_TO_TEXT_INTEGRATION.md       ← STT engines guide
+│   └── LARAVEL_TO_ML_SERVER_CONNECTION.md  ← Laravel connection guide
 ```
 
 ---
@@ -161,12 +197,13 @@ Audio-Based_Threat_Detection/
 ### **For Administrators**:
 1. Start with: `PRIVACY_HANDLING.md` (understand privacy protections)
 2. Then read: `CALIBRATION_QUICK_GUIDE.md` (learn to use the system)
-3. Reference: `CALIBRATION_EXPLAINED.md` (troubleshooting)
+3. Reference: `LARAVEL_TO_ML_SERVER_CONNECTION.md` (setup guide)
 
 ### **For Developers**:
 1. Start with: `FILES_AND_FUNCTIONS_INDEX.md` (code organization)
-2. Then read: `AUDIO_PROCESSING_TECHNIQUES.md` (processing pipeline)
-3. Deep dive: `NOISE_ADAPTIVE_TECHNIQUES.md` (advanced techniques)
+2. Then read: `LARAVEL_TO_ML_SERVER_CONNECTION.md` (connection setup)
+3. Deep dive: `AUDIO_PROCESSING_TECHNIQUES.md` (processing pipeline)
+4. Advanced: `SPEECH_TO_TEXT_INTEGRATION.md` (add STT engines)
 
 ### **For Compliance Officers**:
 1. Read: `PRIVACY_HANDLING.md` (complete privacy documentation)
@@ -191,8 +228,10 @@ Audio-Based_Threat_Detection/
 | Calibration Explained | 6 | 9 | 8 |
 | Calibration Quick Guide | 4 | 8 | 5 |
 | Model Overfitting Fix | 5 | 6 | 7 |
+| Speech-to-Text Integration | 15 | 7 | 25 |
+| Laravel to ML Server | 12 | 6 | 18 |
 
-**Total**: 54 pages, 56 topics, 77 code examples
+**Total**: 81 pages, 69 topics, 120 code examples
 
 ---
 
@@ -223,6 +262,16 @@ Audio-Based_Threat_Detection/
 - Main document: `MODEL_OVERFITTING_FIX.md`
 - Code: `models/non_speech_model.py:118-153`
 - Script: `retrain_model_fixed.py`
+
+### **Speech-to-Text**:
+- Main document: `SPEECH_TO_TEXT_INTEGRATION.md`
+- Implementation: `models/speech_threat_model.py`
+- Keywords: `config/__init__.py:44-304`
+
+### **Laravel Connection**:
+- Main document: `LARAVEL_TO_ML_SERVER_CONNECTION.md`
+- Laravel config: `config/services.php:59-62`
+- Python server: `Audio-Based_Threat_Detection/app.py`
 
 ---
 
