@@ -167,6 +167,20 @@ class TrackedObject:
         
         return False
     
+    @property
+    def time_stationary(self) -> float:
+        """
+        Get time in seconds that object has been stationary
+
+        Returns:
+            Seconds stationary, or 0.0 if not stationary
+        """
+        if not self.is_stationary or self.stationary_since is None:
+            return 0.0
+
+        time_diff = datetime.now() - self.stationary_since
+        return time_diff.total_seconds()
+
     def get_info(self) -> Dict:
         """Get object information as dictionary"""
         return {
@@ -179,6 +193,7 @@ class TrackedObject:
             'last_seen': self.last_seen.isoformat(),
             'is_stationary': self.is_stationary,
             'stationary_since': self.stationary_since.isoformat() if self.stationary_since else None,
+            'time_stationary': self.time_stationary,
             'is_left_behind': self.is_left_behind,
             'left_behind_since': self.left_behind_since.isoformat() if self.left_behind_since else None,
             'alert_sent': self.alert_sent

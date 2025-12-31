@@ -33,23 +33,52 @@ class VideoThreatDetection {
     }
 
     init() {
+        console.log('🚀 Initializing Video Threat Detection System...');
+        console.log('Configuration:', {
+            apiUrl: this.config.apiUrl,
+            routes: this.config.routes
+        });
+
+        // Verify DOM elements exist
+        console.log('DOM Elements Check:', {
+            videoElement: !!this.videoElement,
+            detectionCanvas: !!this.detectionCanvas,
+            esp32Stream: !!this.esp32Stream,
+            esp32Canvas: !!this.esp32Canvas,
+            startBtn: !!document.getElementById('startDetectionBtn'),
+            stopBtn: !!document.getElementById('stopDetectionBtn')
+        });
+
         this.setupEventListeners();
         this.checkApiStatus();
+
+        console.log('✅ Video Threat Detection System initialized');
+        console.log('💡 To test: Click "Start Detection" button and check console for logs');
     }
 
     setupEventListeners() {
         // Start/Stop buttons
         document.getElementById('startDetectionBtn')?.addEventListener('click', () => this.startDetection());
         document.getElementById('stopDetectionBtn')?.addEventListener('click', () => this.stopDetection());
-        
-        // Video source toggle
+
+        // Video source toggle - ONLY switch if not running
         document.querySelectorAll('input[name="videoSource"]').forEach(radio => {
-            radio.addEventListener('change', (e) => this.switchVideoSource(e.target.value));
+            radio.addEventListener('change', (e) => {
+                console.log('Video source change requested:', e.target.value, 'isRunning:', this.isRunning);
+                if (!this.isRunning) {
+                    this.switchVideoSource(e.target.value);
+                } else {
+                    console.warn('Cannot switch video source while detection is running. Stop detection first.');
+                    // Revert radio button to current source
+                    document.querySelector(`input[name="videoSource"][value="${this.videoSource}"]`).checked = true;
+                    this.showNotification('Stop detection before switching video source', 'warning');
+                }
+            });
         });
-        
+
         // ESP32 connection
         document.getElementById('connectEsp32Btn')?.addEventListener('click', () => this.connectEsp32());
-        
+
         // Clear buttons
         document.getElementById('clearResultsBtn')?.addEventListener('click', () => this.clearResults());
         document.getElementById('clearAlertsBtn')?.addEventListener('click', () => this.clearHistory());
@@ -57,43 +86,75 @@ class VideoThreatDetection {
 
     async checkApiStatus() {
         try {
+            console.log('Checking API status at:', this.config.routes.status);
             const response = await fetch(this.config.routes.status);
+
+            if (!response.ok) {
+                throw new Error(`API returned status ${response.status}`);
+            }
+
             const data = await response.json();
-            
+            console.log('API Status:', data);
+
             if (data.status === 'active') {
                 this.updateStatusIndicator('ready', 'Models loaded and ready');
+                this.showNotification('Detection service is ready', 'success');
             } else {
                 this.updateStatusIndicator('error', 'API service unavailable');
+                this.showNotification('Detection service is not ready', 'warning');
             }
         } catch (error) {
             console.error('API status check failed:', error);
             this.updateStatusIndicator('error', 'Cannot connect to detection service');
+            this.showNotification('Cannot connect to detection service. Make sure the ML API is running.', 'error');
         }
     }
 
     async startDetection() {
-        if (this.isRunning) return;
-        
+        if (this.isRunning) {
+            console.warn('⚠️ Detection already running');
+            return;
+        }
+
+        console.log('🎬 Starting detection...');
+        console.log('Video source:', this.videoSource);
+        console.log('Current state:', {
+            isRunning: this.isRunning,
+            videoSource: this.videoSource,
+            hasStream: !!this.stream
+        });
+
         try {
-            if (this.videoSource === 'pc') {
-                await this.startPcCamera();
-            } else {
-                await this.startEsp32Stream();
-            }
-            
+            // Set isRunning BEFORE starting camera to prevent race condition
             this.isRunning = true;
             this.stats.startTime = Date.now();
-            
+            console.log('✅ isRunning set to true BEFORE camera start');
+
+            if (this.videoSource === 'pc') {
+                console.log('📹 Requesting PC camera access...');
+                await this.startPcCamera();
+            } else {
+                console.log('📡 Connecting to ESP32-CAM...');
+                await this.startEsp32Stream();
+            }
+
             // Update UI
-            document.getElementById('startDetectionBtn').classList.add('d-none');
-            document.getElementById('stopDetectionBtn').classList.remove('d-none');
-            document.getElementById('detectionStatus').textContent = 'Active';
-            document.getElementById('cameraStatus').innerHTML = '<span class="text-success text-sm">Camera connected</span>';
-            
+            const startBtn = document.getElementById('startDetectionBtn');
+            const stopBtn = document.getElementById('stopDetectionBtn');
+            const statusEl = document.getElementById('detectionStatus');
+            const cameraStatusEl = document.getElementById('cameraStatus');
+
+            if (startBtn) startBtn.classList.add('d-none');
+            if (stopBtn) stopBtn.classList.remove('d-none');
+            if (statusEl) statusEl.textContent = 'Active';
+            if (cameraStatusEl) cameraStatusEl.innerHTML = '<span class="text-success text-sm">✓ Camera connected</span>';
+
+            console.log('✅ Detection started successfully - isRunning:', this.isRunning);
             this.showNotification('Detection started successfully', 'success');
         } catch (error) {
-            console.error('Failed to start detection:', error);
+            console.error('❌ Failed to start detection:', error);
             this.showNotification('Failed to start detection: ' + error.message, 'error');
+            this.isRunning = false;
         }
     }
 
@@ -102,14 +163,34 @@ class VideoThreatDetection {
             this.stream = await navigator.mediaDevices.getUserMedia({
                 video: { width: 640, height: 480 }
             });
-            
+
             this.videoElement.srcObject = this.stream;
+
+            // Wait for video to be ready before processing
+            await new Promise((resolve, reject) => {
+                this.videoElement.onloadedmetadata = () => {
+                    this.videoElement.play()
+                        .then(() => {
+                            console.log('Video started playing:', {
+                                width: this.videoElement.videoWidth,
+                                height: this.videoElement.videoHeight
+                            });
+                            resolve();
+                        })
+                        .catch(reject);
+                };
+
+                // Timeout after 5 seconds
+                setTimeout(() => reject(new Error('Video loading timeout')), 5000);
+            });
+
             document.getElementById('noVideoMsg').style.display = 'none';
-            
-            // Start processing frames
+
+            // Start processing frames after video is ready
             this.processVideoFrames();
         } catch (error) {
-            throw new Error('Camera access denied or not available');
+            console.error('Camera error:', error);
+            throw new Error('Camera access denied or not available: ' + error.message);
         }
     }
 
@@ -129,45 +210,111 @@ class VideoThreatDetection {
     }
 
     processVideoFrames() {
-        if (!this.isRunning) return;
-        
+        if (!this.isRunning) {
+            console.error('❌ processVideoFrames called but isRunning is false - this should not happen!');
+            console.trace('Call stack:');
+            return;
+        }
+
+        console.log('✅ processVideoFrames started - isRunning:', this.isRunning);
+
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        
+        let frameCount = 0;
+
         const processFrame = async () => {
-            if (!this.isRunning) return;
-            
-            // Capture frame
-            canvas.width = this.videoElement.videoWidth;
-            canvas.height = this.videoElement.videoHeight;
-            ctx.drawImage(this.videoElement, 0, 0);
-            
-            // Convert to base64
-            const frameData = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-            
-            // Send for processing
-            await this.processFrame(frameData);
-            
-            // Continue processing
-            setTimeout(processFrame, 100); // Process at ~10 FPS
+            if (!this.isRunning) {
+                console.log('Frame processing stopped - isRunning is false');
+                return;
+            }
+
+            try {
+                frameCount++;
+
+                // Validate video dimensions
+                if (!this.videoElement.videoWidth || !this.videoElement.videoHeight) {
+                    if (frameCount % 10 === 0) {
+                        console.warn('Video dimensions not ready, waiting...', {
+                            videoWidth: this.videoElement.videoWidth,
+                            videoHeight: this.videoElement.videoHeight,
+                            readyState: this.videoElement.readyState
+                        });
+                    }
+                    setTimeout(processFrame, 100);
+                    return;
+                }
+
+                // Log first successful frame capture
+                if (frameCount === 1) {
+                    console.log('✅ First frame captured successfully:', {
+                        width: this.videoElement.videoWidth,
+                        height: this.videoElement.videoHeight
+                    });
+                }
+
+                // Capture frame
+                canvas.width = this.videoElement.videoWidth;
+                canvas.height = this.videoElement.videoHeight;
+                ctx.drawImage(this.videoElement, 0, 0);
+
+                // Convert to base64
+                const frameData = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+                // Validate frame data
+                if (!frameData || frameData.length === 0) {
+                    console.error('Failed to capture frame data');
+                    setTimeout(processFrame, 100);
+                    return;
+                }
+
+                // Send for processing
+                await this.processFrame(frameData);
+
+                // Continue processing - IMPORTANT: Always schedule next frame
+                if (this.isRunning) {
+                    setTimeout(processFrame, 100); // Process at ~10 FPS
+                } else {
+                    console.log('Stopping frame processing - isRunning became false');
+                }
+            } catch (error) {
+                console.error('Error in processFrame loop:', error);
+                // Continue even on error
+                if (this.isRunning) {
+                    setTimeout(processFrame, 100);
+                }
+            }
         };
-        
+
+        // Start processing
+        console.log('🎬 Starting frame processing loop...');
         processFrame();
     }
 
     processEsp32Frames() {
         this.esp32Interval = setInterval(async () => {
             if (!this.isRunning) return;
-            
+
             try {
+                // Check if ESP32 stream has valid dimensions
+                if (!this.esp32Stream.width || !this.esp32Stream.height) {
+                    console.warn('ESP32 stream dimensions not ready');
+                    return;
+                }
+
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-                
+
                 canvas.width = this.esp32Stream.width;
                 canvas.height = this.esp32Stream.height;
                 ctx.drawImage(this.esp32Stream, 0, 0);
 
                 const frameData = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+                if (!frameData || frameData.length === 0) {
+                    console.error('Failed to capture ESP32 frame data');
+                    return;
+                }
+
                 await this.processFrame(frameData);
             } catch (error) {
                 console.error('ESP32 frame processing error:', error);
@@ -188,8 +335,42 @@ class VideoThreatDetection {
                 body: JSON.stringify({ frame: frameData })
             });
 
+            if (!response.ok) {
+                console.error('API response error:', response.status, response.statusText);
+                return;
+            }
+
             const data = await response.json();
             const latency = Date.now() - startTime;
+
+            // Detailed logging
+            const hasObjects = data.objects?.detections?.length > 0;
+            const hasThreat = data.threats?.is_threat || false;
+
+            if (hasObjects || hasThreat) {
+                console.log('🎯 DETECTION FOUND:', {
+                    success: data.success,
+                    latency: latency + 'ms',
+                    objects: {
+                        total: data.objects?.total_objects || 0,
+                        leftBehind: data.objects?.left_behind_count || 0,
+                        detections: data.objects?.detections || []
+                    },
+                    threats: {
+                        isThreat: hasThreat,
+                        type: data.threats?.threat_type || null,
+                        confidence: data.threats?.confidence || 0
+                    }
+                });
+            } else {
+                // Only log every 10th frame when no detections to reduce console spam
+                if (this.stats.framesProcessed % 10 === 0) {
+                    console.log('Frame processed (no detections):', {
+                        framesProcessed: this.stats.framesProcessed,
+                        latency: latency + 'ms'
+                    });
+                }
+            }
 
             if (data.success) {
                 this.stats.framesProcessed++;
@@ -198,26 +379,45 @@ class VideoThreatDetection {
                 // Handle detections
                 this.handleDetections(data);
 
-                // Draw on canvas
+                // Draw on canvas (always draw to clear previous detections)
                 this.drawDetections(data);
+            } else {
+                console.error('Detection failed:', data.error || 'Unknown error');
             }
         } catch (error) {
             console.error('Frame processing error:', error);
+            // Don't show notification for every error to avoid spam
+            if (this.stats.framesProcessed === 0) {
+                this.showNotification('Detection service error: ' + error.message, 'error');
+            }
         }
     }
 
     handleDetections(data) {
         const { objects, threats } = data;
 
-        // Handle object detections
-        if (objects && objects.detections) {
-            const leftBehind = objects.detections.filter(obj => obj.is_left_behind);
+        // Handle object detections - Show ALL objects, not just left-behind
+        if (objects && objects.detections && objects.detections.length > 0) {
+            // Update total objects count
+            this.updateObjectCount(objects.total_objects);
 
+            // Show left-behind objects in results panel
+            const leftBehind = objects.detections.filter(obj => obj.is_left_behind);
             if (leftBehind.length > 0) {
                 this.stats.objectsDetected += leftBehind.length;
                 this.addDetectionResult('object', leftBehind);
-                this.updateObjectCount(objects.left_behind_count);
             }
+
+            // Log all detected objects for debugging
+            console.log('Objects detected:', {
+                total: objects.total_objects,
+                leftBehind: objects.left_behind_count,
+                detections: objects.detections.map(obj => ({
+                    class: obj.class_name,
+                    confidence: obj.confidence,
+                    isLeftBehind: obj.is_left_behind
+                }))
+            });
         }
 
         // Handle threat detections
@@ -233,39 +433,72 @@ class VideoThreatDetection {
         const canvas = this.videoSource === 'pc' ? this.detectionCanvas : this.esp32Canvas;
         const video = this.videoSource === 'pc' ? this.videoElement : this.esp32Stream;
 
-        canvas.width = video.videoWidth || video.width;
-        canvas.height = video.videoHeight || video.height;
+        // Ensure canvas matches video dimensions
+        const width = video.videoWidth || video.width;
+        const height = video.videoHeight || video.height;
+
+        if (!width || !height) {
+            console.warn('Cannot draw detections: invalid video dimensions');
+            return;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
 
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Draw object detections
-        if (data.objects && data.objects.detections) {
-            data.objects.detections.forEach(obj => {
+        // Draw ALL object detections with bounding boxes
+        if (data.objects && data.objects.detections && data.objects.detections.length > 0) {
+            console.log(`Drawing ${data.objects.detections.length} detections on canvas`);
+
+            data.objects.detections.forEach((obj) => {
                 const [x1, y1, x2, y2] = obj.bbox;
+
+                // Color: Red for left-behind, Green for tracked objects
                 const color = obj.is_left_behind ? '#EF4444' : '#10B981';
 
+                // Draw bounding box
                 ctx.strokeStyle = color;
                 ctx.lineWidth = 3;
                 ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
 
-                // Label
+                // Draw label background
+                const label = `${obj.class_name} ${obj.is_left_behind ? '[LEFT BEHIND]' : ''}`;
+                const labelWidth = Math.max(200, ctx.measureText(label).width + 10);
+
                 ctx.fillStyle = color;
-                ctx.fillRect(x1, y1 - 25, 200, 25);
+                ctx.fillRect(x1, Math.max(0, y1 - 25), labelWidth, 25);
+
+                // Draw label text
                 ctx.fillStyle = '#FFFFFF';
-                ctx.font = '14px Arial';
-                ctx.fillText(`${obj.class_name} ${obj.is_left_behind ? '[LEFT BEHIND]' : ''}`, x1 + 5, y1 - 7);
+                ctx.font = 'bold 14px Arial';
+                ctx.fillText(label, x1 + 5, Math.max(15, y1 - 7));
+
+                // Draw confidence score
+                ctx.font = '12px Arial';
+                ctx.fillText(`${(obj.confidence * 100).toFixed(1)}%`, x1 + 5, y2 - 5);
             });
         }
 
-        // Draw threat indicator
+        // Draw threat indicator overlay
         if (data.threats && data.threats.is_threat) {
+            // Red overlay
             ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+            // Threat warning text
             ctx.fillStyle = '#EF4444';
             ctx.font = 'bold 24px Arial';
-            ctx.fillText(`THREAT: ${data.threats.threat_type}`, 10, 40);
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 3;
+            ctx.strokeText(`⚠ THREAT: ${data.threats.threat_type}`, 10, 40);
+            ctx.fillText(`⚠ THREAT: ${data.threats.threat_type}`, 10, 40);
+
+            // Confidence
+            ctx.font = 'bold 18px Arial';
+            ctx.strokeText(`Confidence: ${(data.threats.confidence * 100).toFixed(1)}%`, 10, 70);
+            ctx.fillText(`Confidence: ${(data.threats.confidence * 100).toFixed(1)}%`, 10, 70);
         }
     }
 
@@ -338,6 +571,9 @@ class VideoThreatDetection {
     }
 
     stopDetection() {
+        console.log('🛑 stopDetection called');
+        console.trace('Stop detection call stack'); // This will show where it was called from
+
         this.isRunning = false;
 
         if (this.stream) {
@@ -356,12 +592,17 @@ class VideoThreatDetection {
         document.getElementById('detectionStatus').textContent = 'Inactive';
         document.getElementById('cameraStatus').innerHTML = '<span class="text-secondary text-sm">Camera disconnected</span>';
 
+        console.log('Detection stopped');
         this.showNotification('Detection stopped', 'info');
     }
 
     switchVideoSource(source) {
+        console.log('Switching video source to:', source);
+
+        // Should only be called when detection is NOT running
         if (this.isRunning) {
-            this.stopDetection();
+            console.error('switchVideoSource called while detection is running - this should not happen!');
+            return;
         }
 
         this.videoSource = source;
@@ -390,13 +631,36 @@ class VideoThreatDetection {
         this.stats.totalLatency += latency;
 
         // Update UI
-        document.getElementById('framesProcessed').textContent = this.stats.framesProcessed;
+        const framesEl = document.getElementById('framesProcessed');
+        if (framesEl) {
+            framesEl.textContent = this.stats.framesProcessed;
+
+            // Add pulse animation on update
+            framesEl.style.color = '#4CAF50';
+            setTimeout(() => {
+                framesEl.style.color = '';
+            }, 200);
+        }
 
         const fps = this.stats.framesProcessed / ((Date.now() - this.stats.startTime) / 1000);
-        document.getElementById('processingRate').innerHTML = `<span class="text-success text-sm">${fps.toFixed(1)} fps</span>`;
+        const processingRateEl = document.getElementById('processingRate');
+        if (processingRateEl) {
+            processingRateEl.innerHTML = `<span class="text-success text-sm">⚡ ${fps.toFixed(1)} fps</span>`;
+        }
 
-        document.getElementById('fpsCounter').textContent = `${fps.toFixed(1)} FPS`;
-        document.getElementById('latencyCounter').textContent = `${latency}ms`;
+        const fpsCounterEl = document.getElementById('fpsCounter');
+        if (fpsCounterEl) {
+            fpsCounterEl.textContent = `${fps.toFixed(1)} FPS`;
+        }
+
+        const latencyCounterEl = document.getElementById('latencyCounter');
+        if (latencyCounterEl) {
+            latencyCounterEl.textContent = `${latency}ms`;
+            // Color code latency: green < 200ms, yellow < 500ms, red >= 500ms
+            latencyCounterEl.className = latency < 200 ? 'badge bg-success' :
+                                         latency < 500 ? 'badge bg-warning' :
+                                         'badge bg-danger';
+        }
     }
 
     updateObjectCount(count) {

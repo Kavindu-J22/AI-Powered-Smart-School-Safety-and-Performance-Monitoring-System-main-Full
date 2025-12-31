@@ -226,62 +226,82 @@ class ThreatDetector:
             self.add_frame(frame)
 
         # Need full buffer for detection
-        if len(self.frame_buffer) < self.clip_length:
+        buffer_size = len(self.frame_buffer)
+        if buffer_size < self.clip_length:
+            logger.debug(f"Buffer not full: {buffer_size}/{self.clip_length} frames")
             return {
                 'is_threat': False,
                 'threat_type': None,
                 'confidence': 0.0,
                 'all_scores': {},
-                'status': 'buffering'
+                'status': 'buffering',
+                'buffer_size': buffer_size,
+                'required_size': self.clip_length
             }
 
-        # Prepare input tensor
-        # Shape: (batch, channels, time, height, width)
-        frames = np.stack(list(self.frame_buffer), axis=0)  # (T, H, W, C)
-        frames = np.transpose(frames, (3, 0, 1, 2))  # (C, T, H, W)
-        frames = np.expand_dims(frames, axis=0)  # (1, C, T, H, W)
+        try:
+            # Prepare input tensor
+            # Shape: (batch, channels, time, height, width)
+            frames = np.stack(list(self.frame_buffer), axis=0)  # (T, H, W, C)
+            frames = np.transpose(frames, (3, 0, 1, 2))  # (C, T, H, W)
+            frames = np.expand_dims(frames, axis=0)  # (1, C, T, H, W)
 
-        # Convert to tensor
-        frames_tensor = torch.from_numpy(frames).float().to(self.device)
+            # Convert to tensor
+            frames_tensor = torch.from_numpy(frames).float().to(self.device)
 
-        # Run inference
-        with torch.no_grad():
-            if self.model_type == "slowfast":
-                # SlowFast requires two pathways
-                slow_pathway = frames_tensor
-                fast_pathway = frames_tensor[:, :, ::2, :, :]  # Sample every 2nd frame
-                outputs = self.model([slow_pathway, fast_pathway])
-            else:
-                outputs = self.model(frames_tensor)
+            # Run inference
+            with torch.no_grad():
+                if self.model_type == "slowfast":
+                    # SlowFast requires two pathways
+                    slow_pathway = frames_tensor
+                    # Ensure fast pathway has enough frames
+                    if frames_tensor.shape[2] < 4:
+                        logger.warning(f"Not enough frames for SlowFast: {frames_tensor.shape[2]}")
+                        raise ValueError(f"Insufficient frames for SlowFast model: {frames_tensor.shape[2]}")
+                    fast_pathway = frames_tensor[:, :, ::2, :, :]  # Sample every 2nd frame
+                    outputs = self.model([slow_pathway, fast_pathway])
+                else:
+                    outputs = self.model(frames_tensor)
 
-            # Get probabilities
-            probs = torch.softmax(outputs, dim=1)[0]
-            probs = probs.cpu().numpy()
+                # Get probabilities
+                probs = torch.softmax(outputs, dim=1)[0]
+                probs = probs.cpu().numpy()
 
-        # Get all class scores
-        all_classes = self.threat_classes + [self.normal_class]
-        all_scores = {cls: float(probs[i]) for i, cls in enumerate(all_classes)}
+            # Get all class scores
+            all_classes = self.threat_classes + [self.normal_class]
+            all_scores = {cls: float(probs[i]) for i, cls in enumerate(all_classes)}
 
-        # Find highest threat score
-        max_threat_idx = -1
-        max_threat_score = 0.0
+            # Find highest threat score
+            max_threat_idx = -1
+            max_threat_score = 0.0
 
-        for i, threat_class in enumerate(self.threat_classes):
-            if probs[i] > max_threat_score:
-                max_threat_score = probs[i]
-                max_threat_idx = i
+            for i, threat_class in enumerate(self.threat_classes):
+                if probs[i] > max_threat_score:
+                    max_threat_score = probs[i]
+                    max_threat_idx = i
 
-        # Determine if threat detected
-        is_threat = max_threat_score >= self.confidence_threshold
-        threat_type = self.threat_classes[max_threat_idx] if is_threat else None
+            # Determine if threat detected
+            is_threat = max_threat_score >= self.confidence_threshold
+            threat_type = self.threat_classes[max_threat_idx] if is_threat else None
 
-        return {
-            'is_threat': is_threat,
-            'threat_type': threat_type,
-            'confidence': float(max_threat_score),
-            'all_scores': all_scores,
-            'status': 'detected' if is_threat else 'normal'
-        }
+            return {
+                'is_threat': is_threat,
+                'threat_type': threat_type,
+                'confidence': float(max_threat_score),
+                'all_scores': all_scores,
+                'status': 'detected' if is_threat else 'normal'
+            }
+
+        except Exception as e:
+            logger.error(f"Error in threat detection: {e}")
+            return {
+                'is_threat': False,
+                'threat_type': None,
+                'confidence': 0.0,
+                'all_scores': {},
+                'status': 'error',
+                'error': str(e)
+            }
 
     def reset_buffer(self):
         """Clear the frame buffer"""
