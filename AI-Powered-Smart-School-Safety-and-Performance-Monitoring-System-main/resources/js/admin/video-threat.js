@@ -458,8 +458,26 @@ class VideoThreatDetection {
             data.objects.detections.forEach((obj) => {
                 const [x1, y1, x2, y2] = obj.bbox;
 
-                // Color: Red for left-behind, Green for tracked objects
-                const color = obj.is_left_behind ? '#EF4444' : '#10B981';
+                // Color logic:
+                // - Yellow (#FCD34D) for persons
+                // - Red (#EF4444) for left-behind objects
+                // - Purple (#A855F7) for unknown objects
+                // - Green (#10B981) for tracked known objects
+                let color, label;
+
+                if (obj.class_name.toLowerCase() === 'person') {
+                    color = '#FCD34D';  // Yellow for persons
+                    label = `👤 ${obj.class_name}`;
+                } else if (obj.is_left_behind) {
+                    color = '#EF4444';  // Red for left-behind
+                    label = `${obj.class_name} [LEFT BEHIND]`;
+                } else if (obj.is_unknown) {
+                    color = '#A855F7';  // Purple for unknown objects
+                    label = `❓ unknown (${obj.original_class_name || 'unidentified'})`;
+                } else {
+                    color = '#10B981';  // Green for tracked objects
+                    label = `${obj.class_name}`;
+                }
 
                 // Draw bounding box
                 ctx.strokeStyle = color;
@@ -467,7 +485,6 @@ class VideoThreatDetection {
                 ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
 
                 // Draw label background
-                const label = `${obj.class_name} ${obj.is_left_behind ? '[LEFT BEHIND]' : ''}`;
                 const labelWidth = Math.max(200, ctx.measureText(label).width + 10);
 
                 ctx.fillStyle = color;
@@ -538,22 +555,44 @@ class VideoThreatDetection {
         if (type === 'object' && Array.isArray(data)) {
             // Show each detected object
             data.forEach(obj => {
-                const resultDiv = document.createElement('div');
-                resultDiv.className = `alert alert-${obj.is_left_behind ? 'danger' : 'info'} mb-2`;
+                // Determine alert type and badge based on object type
+                let alertType, statusBadge, icon;
 
-                const statusBadge = obj.is_left_behind
-                    ? '<span class="badge bg-danger">LEFT BEHIND</span>'
-                    : '<span class="badge bg-success">TRACKED</span>';
+                if (obj.class_name.toLowerCase() === 'person') {
+                    alertType = 'warning';  // Yellow alert for persons
+                    statusBadge = '<span class="badge bg-warning text-dark">👤 PERSON</span>';
+                    icon = '👤';
+                } else if (obj.is_left_behind) {
+                    alertType = 'danger';  // Red alert for left-behind
+                    statusBadge = '<span class="badge bg-danger">⚠️ LEFT BEHIND</span>';
+                    icon = '⚠️';
+                } else if (obj.is_unknown) {
+                    alertType = 'secondary';  // Gray/purple alert for unknown
+                    statusBadge = '<span class="badge bg-purple">❓ UNKNOWN</span>';
+                    icon = '❓';
+                } else {
+                    alertType = 'success';  // Green alert for tracked
+                    statusBadge = '<span class="badge bg-success">✓ TRACKED</span>';
+                    icon = '✓';
+                }
+
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `alert alert-${alertType} mb-2`;
 
                 const stationaryTime = obj.time_stationary > 0
                     ? `<small class="text-muted">Stationary: ${obj.time_stationary.toFixed(1)}s</small>`
                     : '';
 
+                // Show original class name for unknown objects
+                const displayName = obj.is_unknown && obj.original_class_name
+                    ? `unknown (${obj.original_class_name})`
+                    : obj.class_name;
+
                 resultDiv.innerHTML = `
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
                             <div class="d-flex align-items-center gap-2 mb-1">
-                                <strong>${obj.class_name}</strong>
+                                <strong>${icon} ${displayName}</strong>
                                 ${statusBadge}
                                 <span class="badge bg-secondary">ID: ${obj.track_id}</span>
                             </div>

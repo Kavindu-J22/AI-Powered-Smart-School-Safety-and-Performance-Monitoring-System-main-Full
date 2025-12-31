@@ -79,21 +79,24 @@ class LeftBehindObjectDetector:
     def detect(
         self,
         frame: np.ndarray,
-        filter_classes: bool = True
+        filter_classes: bool = True,
+        include_unknown: bool = True
     ) -> List[Dict]:
         """
         Detect objects in a frame
-        
+
         Args:
             frame: Input image (BGR format)
             filter_classes: Whether to filter only target classes
-            
+            include_unknown: Whether to include unknown objects (not in target_classes)
+
         Returns:
             List of detections, each containing:
                 - bbox: [x1, y1, x2, y2]
                 - confidence: float
                 - class_id: int
                 - class_name: str
+                - is_unknown: bool (True if not in target_classes)
         """
         # Run inference
         results = self.model(
@@ -102,42 +105,52 @@ class LeftBehindObjectDetector:
             iou=self.iou_threshold,
             verbose=False
         )[0]
-        
+
         detections = []
-        
+
         # Process results
         if results.boxes is not None:
             boxes = results.boxes.xyxy.cpu().numpy()  # x1, y1, x2, y2
             confidences = results.boxes.conf.cpu().numpy()
             class_ids = results.boxes.cls.cpu().numpy().astype(int)
-            
+
             for box, conf, class_id in zip(boxes, confidences, class_ids):
-                # Filter by target classes if enabled
-                if filter_classes and class_id not in self.target_class_indices:
+                is_target_class = class_id in self.target_class_indices
+
+                # Skip if filtering and not a target class and not including unknown
+                if filter_classes and not is_target_class and not include_unknown:
                     continue
-                
+
+                # Determine class name
+                original_class_name = self.class_names[class_id]
+                class_name = original_class_name if is_target_class else "unknown"
+
                 detection = {
                     'bbox': box.tolist(),
                     'confidence': float(conf),
                     'class_id': int(class_id),
-                    'class_name': self.class_names[class_id]
+                    'class_name': class_name,
+                    'original_class_name': original_class_name,  # Keep original for reference
+                    'is_unknown': not is_target_class
                 }
                 detections.append(detection)
-        
+
         return detections
     
     def detect_batch(
         self,
         frames: List[np.ndarray],
-        filter_classes: bool = True
+        filter_classes: bool = True,
+        include_unknown: bool = True
     ) -> List[List[Dict]]:
         """
         Detect objects in multiple frames (batch processing)
-        
+
         Args:
             frames: List of input images
             filter_classes: Whether to filter only target classes
-            
+            include_unknown: Whether to include unknown objects (not in target_classes)
+
         Returns:
             List of detection lists for each frame
         """
@@ -148,29 +161,38 @@ class LeftBehindObjectDetector:
             iou=self.iou_threshold,
             verbose=False
         )
-        
+
         all_detections = []
-        
+
         for result in results:
             detections = []
-            
+
             if result.boxes is not None:
                 boxes = result.boxes.xyxy.cpu().numpy()
                 confidences = result.boxes.conf.cpu().numpy()
                 class_ids = result.boxes.cls.cpu().numpy().astype(int)
-                
+
                 for box, conf, class_id in zip(boxes, confidences, class_ids):
-                    if filter_classes and class_id not in self.target_class_indices:
+                    is_target_class = class_id in self.target_class_indices
+
+                    # Skip if filtering and not a target class and not including unknown
+                    if filter_classes and not is_target_class and not include_unknown:
                         continue
-                    
+
+                    # Determine class name
+                    original_class_name = self.class_names[class_id]
+                    class_name = original_class_name if is_target_class else "unknown"
+
                     detection = {
                         'bbox': box.tolist(),
                         'confidence': float(conf),
                         'class_id': int(class_id),
-                        'class_name': self.class_names[class_id]
+                        'class_name': class_name,
+                        'original_class_name': original_class_name,
+                        'is_unknown': not is_target_class
                     }
                     detections.append(detection)
-            
+
             all_detections.append(detections)
 
         return all_detections

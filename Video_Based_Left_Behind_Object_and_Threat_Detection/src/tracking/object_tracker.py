@@ -141,20 +141,24 @@ class TrackedObject:
     ) -> bool:
         """
         Check if object has been left behind
-        
+
         Args:
             current_time: Current timestamp
             threshold_minutes: Minutes of being stationary to consider left behind
-            
+
         Returns:
             True if object is left behind
         """
+        # NEVER mark persons as left-behind objects
+        if self.class_name.lower() == 'person':
+            return False
+
         if not self.is_stationary or self.stationary_since is None:
             return False
-        
+
         time_stationary = current_time - self.stationary_since
         threshold = timedelta(minutes=threshold_minutes)
-        
+
         if time_stationary >= threshold:
             if not self.is_left_behind:
                 self.is_left_behind = True
@@ -164,7 +168,7 @@ class TrackedObject:
                     f"detected as left behind after {threshold_minutes} minutes"
                 )
             return True
-        
+
         return False
     
     @property

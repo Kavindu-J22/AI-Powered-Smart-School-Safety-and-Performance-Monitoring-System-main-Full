@@ -77,31 +77,42 @@ object_detection:
     type: "yolov8"
     weights: "models/left_behind_detector.pt"
     input_size: [640, 640]
-    confidence_threshold: 0.3  # Reduced from 0.5 for better detection
+    confidence_threshold: 0.25  # Further reduced from 0.3 for better small object detection
     iou_threshold: 0.45
 
   # Classes to detect as left-behind objects
   target_classes:
-    - "person"        # For testing and general detection
+    - "person"        # For general detection (NEVER marked as left-behind)
     - "backpack"
     - "handbag"
     - "suitcase"
-    - "book"
-    - "bottle"
-    - "cup"           # Added
+    - "book"          # Books, notebooks
+    - "bottle"        # Water bottles
+    - "cup"           # Cups, mugs
     - "umbrella"
     - "laptop"
-    - "cell phone"    # Added
-    - "keyboard"      # Added
-    - "mouse"         # Added
-    - "remote"        # Added
-    - "scissors"      # Added (closest to pen in COCO)
+    - "cell phone"    # Mobile phones
+    - "keyboard"      # Keyboards
+    - "mouse"         # Computer mouse
+    - "remote"        # TV remotes
+    - "scissors"      # Scissors (closest to pen/pencil in COCO)
+    - "knife"         # Utility knives, cutters
+    - "spoon"         # Spoons, utensils
+    - "fork"          # Forks
+    - "bowl"          # Bowls
+    - "banana"        # Food items (for testing small objects)
+    - "apple"         # Food items
+    - "orange"        # Food items
+    - "clock"         # Clocks, watches
+    - "vase"          # Vases, containers
+    - "teddy bear"    # Toys
+    - "toothbrush"    # Small personal items
 
   # Time threshold for left-behind detection (minutes after last class)
   left_behind_threshold: 60
 
-  # Minimum object size (pixels) to consider
-  min_object_size: 500  # Reduced from 1000 to detect smaller objects
+  # Minimum object size (pixels) to consider - VERY LOW for small objects like pens
+  min_object_size: 200  # Reduced from 500 to detect very small objects
 
 # Threat Detection Configuration
 threat_detection:

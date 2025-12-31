@@ -1,5 +1,17 @@
 /* Video Threat Detection Styles */
 
+/* Custom Badge Colors */
+.badge.bg-purple {
+    background-color: #a855f7 !important;
+    color: #ffffff !important;
+}
+
+.alert-secondary {
+    background-color: #f3f4f6 !important;
+    border-color: #a855f7 !important;
+    color: #374151 !important;
+}
+
 .video-container {
     position: relative;
     background: #000;
@@ -87,7 +99,7 @@
     .video-container {
         min-height: 300px;
     }
-    
+
     .detection-info-overlay {
         top: 5px;
         right: 5px;
@@ -107,11 +119,11 @@
 }
 
 @keyframes pulse {
-    0%, 100% {
+    0%,
+    100% {
         opacity: 1;
     }
     50% {
         opacity: 0.8;
     }
 }
-
