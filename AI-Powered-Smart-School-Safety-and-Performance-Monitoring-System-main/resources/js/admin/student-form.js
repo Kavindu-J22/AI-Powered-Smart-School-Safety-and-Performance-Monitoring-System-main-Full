@@ -641,7 +641,7 @@ function renderPrimarySubjects(data) {
     document.getElementById("primarySubjects").style.display = "block";
 
     // First Language
-    if (data.subjects.first_language) {
+    if (data.subjects.first_language && data.subjects.first_language.length > 0) {
         renderCheckboxGroup(
             "firstLanguagePrimary",
             data.subjects.first_language,
@@ -651,7 +651,7 @@ function renderPrimarySubjects(data) {
     }
 
     // Religion
-    if (data.subjects.religion) {
+    if (data.subjects.religion && data.subjects.religion.length > 0) {
         renderCheckboxGroup(
             "religionPrimary",
             data.subjects.religion,
@@ -661,7 +661,7 @@ function renderPrimarySubjects(data) {
     }
 
     // Aesthetic Studies
-    if (data.subjects.aesthetic) {
+    if (data.subjects.aesthetic && data.subjects.aesthetic.length > 0) {
         renderCheckboxGroup(
             "aestheticPrimary",
             data.subjects.aesthetic,
@@ -671,7 +671,7 @@ function renderPrimarySubjects(data) {
     }
 
     // Core subjects (display only)
-    if (data.subjects.core) {
+    if (data.subjects.core && data.subjects.core.length > 0) {
         const coreList = document.getElementById("corePrimaryList");
         coreList.innerHTML = "";
         data.subjects.core.forEach((subject) => {
@@ -688,7 +688,7 @@ function renderSecondarySubjects(data) {
     document.getElementById("secondarySubjects").style.display = "block";
 
     // First Language
-    if (data.subjects.first_language) {
+    if (data.subjects.first_language && data.subjects.first_language.length > 0) {
         renderCheckboxGroup(
             "firstLanguageSecondary",
             data.subjects.first_language,
@@ -698,7 +698,7 @@ function renderSecondarySubjects(data) {
     }
 
     // Religion
-    if (data.subjects.religion) {
+    if (data.subjects.religion && data.subjects.religion.length > 0) {
         renderCheckboxGroup(
             "religionSecondary",
             data.subjects.religion,
@@ -708,7 +708,7 @@ function renderSecondarySubjects(data) {
     }
 
     // Core subjects (display only)
-    if (data.subjects.core) {
+    if (data.subjects.core && data.subjects.core.length > 0) {
         const coreList = document.getElementById("coreSecondaryList");
         coreList.innerHTML = "";
         data.subjects.core.forEach((subject) => {
@@ -720,7 +720,7 @@ function renderSecondarySubjects(data) {
     }
 
     // Elective subjects
-    if (data.subjects.elective) {
+    if (data.subjects.elective && data.subjects.elective.length > 0) {
         renderCheckboxGroup(
             "electiveSecondary",
             data.subjects.elective,

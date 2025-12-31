@@ -187,10 +187,10 @@ class Subject extends Model
         // Primary Education (Grades 1-5)
         if ($grade->isPrimary()) {
             $data['subjects'] = [
-                'first_language' => self::getChoiceSubjects($grade, 'First Language'),
-                'core' => self::getRequiredSubjects($grade),
-                'religion' => self::getChoiceSubjects($grade, 'Religion'),
-                'aesthetic' => self::getChoiceSubjects($grade, 'Aesthetic Studies'),
+                'first_language' => self::getChoiceSubjects($grade, 'First Language')->values()->toArray(),
+                'core' => self::getRequiredSubjects($grade)->values()->toArray(),
+                'religion' => self::getChoiceSubjects($grade, 'Religion')->values()->toArray(),
+                'aesthetic' => self::getChoiceSubjects($grade, 'Aesthetic Studies')->values()->toArray(),
             ];
 
             $data['rules'] = [
@@ -203,10 +203,10 @@ class Subject extends Model
         // Secondary Education (Grades 6-11)
         elseif ($grade->isSecondary()) {
             $data['subjects'] = [
-                'first_language' => self::getChoiceSubjects($grade, 'First Language'),
-                'core' => self::getRequiredSubjects($grade),
-                'religion' => self::getChoiceSubjects($grade, 'Religion'),
-                'elective' => self::getElectiveSubjects($grade),
+                'first_language' => self::getChoiceSubjects($grade, 'First Language')->values()->toArray(),
+                'core' => self::getRequiredSubjects($grade)->values()->toArray(),
+                'religion' => self::getChoiceSubjects($grade, 'Religion')->values()->toArray(),
+                'elective' => self::getElectiveSubjects($grade)->values()->toArray(),
             ];
 
             $data['rules'] = [
@@ -223,7 +223,7 @@ class Subject extends Model
             $streamSubjects = [];
 
             foreach ($streams as $stream) {
-                $streamSubjects[$stream] = self::getStreamSubjects($grade, $stream);
+                $streamSubjects[$stream] = self::getStreamSubjects($grade, $stream)->values()->toArray();
             }
 
             $data['subjects'] = [
