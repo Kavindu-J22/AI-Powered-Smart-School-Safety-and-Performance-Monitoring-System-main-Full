@@ -77,24 +77,31 @@ object_detection:
     type: "yolov8"
     weights: "models/left_behind_detector.pt"
     input_size: [640, 640]
-    confidence_threshold: 0.5
+    confidence_threshold: 0.3  # Reduced from 0.5 for better detection
     iou_threshold: 0.45
-  
+
   # Classes to detect as left-behind objects
   target_classes:
+    - "person"        # For testing and general detection
     - "backpack"
     - "handbag"
     - "suitcase"
     - "book"
     - "bottle"
+    - "cup"           # Added
     - "umbrella"
     - "laptop"
-  
+    - "cell phone"    # Added
+    - "keyboard"      # Added
+    - "mouse"         # Added
+    - "remote"        # Added
+    - "scissors"      # Added (closest to pen in COCO)
+
   # Time threshold for left-behind detection (minutes after last class)
   left_behind_threshold: 60
-  
+
   # Minimum object size (pixels) to consider
-  min_object_size: 1000
+  min_object_size: 500  # Reduced from 1000 to detect smaller objects
 
 # Threat Detection Configuration
 threat_detection:
@@ -119,8 +126,8 @@ threat_detection:
 # Tracking Configuration
 tracking:
   algorithm: "deepsort"  # or "sort", "bytetrack"
-  max_age: 30  # Maximum frames to keep alive a track without detections
-  min_hits: 3  # Minimum detections before track is confirmed
+  max_age: 5  # Maximum frames to keep alive a track without detections (reduced from 30 for faster clearing)
+  min_hits: 2  # Minimum detections before track is confirmed (reduced from 3 for faster detection)
   iou_threshold: 0.3
 
 # Notification Configuration

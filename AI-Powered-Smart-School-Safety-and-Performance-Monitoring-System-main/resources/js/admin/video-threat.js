@@ -396,17 +396,14 @@ class VideoThreatDetection {
     handleDetections(data) {
         const { objects, threats } = data;
 
-        // Handle object detections - Show ALL objects, not just left-behind
+        // Handle object detections - Show ALL objects
         if (objects && objects.detections && objects.detections.length > 0) {
             // Update total objects count
             this.updateObjectCount(objects.total_objects);
 
-            // Show left-behind objects in results panel
-            const leftBehind = objects.detections.filter(obj => obj.is_left_behind);
-            if (leftBehind.length > 0) {
-                this.stats.objectsDetected += leftBehind.length;
-                this.addDetectionResult('object', leftBehind);
-            }
+            // Show ALL detected objects in results panel (not just left-behind)
+            this.stats.objectsDetected = objects.total_objects;
+            this.addDetectionResult('object', objects.detections);
 
             // Log all detected objects for debugging
             console.log('Objects detected:', {
@@ -415,9 +412,15 @@ class VideoThreatDetection {
                 detections: objects.detections.map(obj => ({
                     class: obj.class_name,
                     confidence: obj.confidence,
-                    isLeftBehind: obj.is_left_behind
+                    trackId: obj.track_id,
+                    isLeftBehind: obj.is_left_behind,
+                    timeStationary: obj.time_stationary
                 }))
             });
+        } else {
+            // Clear detection results when no objects detected
+            this.updateObjectCount(0);
+            this.clearDetectionResults();
         }
 
         // Handle threat detections
@@ -502,45 +505,89 @@ class VideoThreatDetection {
         }
     }
 
+    clearDetectionResults() {
+        const container = document.getElementById('resultsContainer');
+        const noResultsMsg = document.getElementById('noResultsMsg');
+
+        if (container) {
+            // Clear all alerts except the "no results" message
+            const alerts = container.querySelectorAll('.alert');
+            alerts.forEach(alert => alert.remove());
+        }
+
+        if (noResultsMsg) {
+            noResultsMsg.style.display = 'block';
+        }
+    }
+
     addDetectionResult(type, data) {
         const container = document.getElementById('resultsContainer');
         const noResultsMsg = document.getElementById('noResultsMsg');
+
+        if (!container) return;
+
+        // Clear previous results first
+        this.clearDetectionResults();
 
         if (noResultsMsg) {
             noResultsMsg.style.display = 'none';
         }
 
-        const resultDiv = document.createElement('div');
-        resultDiv.className = `alert alert-${type === 'threat' ? 'danger' : 'warning'} mb-2`;
-
         const time = new Date().toLocaleTimeString();
 
-        if (type === 'object') {
-            resultDiv.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>Left-Behind Objects</strong>
-                        <p class="mb-0 text-sm">${data.length} object(s) detected</p>
+        if (type === 'object' && Array.isArray(data)) {
+            // Show each detected object
+            data.forEach(obj => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `alert alert-${obj.is_left_behind ? 'danger' : 'info'} mb-2`;
+
+                const statusBadge = obj.is_left_behind
+                    ? '<span class="badge bg-danger">LEFT BEHIND</span>'
+                    : '<span class="badge bg-success">TRACKED</span>';
+
+                const stationaryTime = obj.time_stationary > 0
+                    ? `<small class="text-muted">Stationary: ${obj.time_stationary.toFixed(1)}s</small>`
+                    : '';
+
+                resultDiv.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <strong>${obj.class_name}</strong>
+                                ${statusBadge}
+                                <span class="badge bg-secondary">ID: ${obj.track_id}</span>
+                            </div>
+                            <div class="text-sm">
+                                <span class="text-muted">Confidence: ${(obj.confidence * 100).toFixed(1)}%</span>
+                                ${stationaryTime}
+                            </div>
+                        </div>
+                        <small class="text-muted">${time}</small>
                     </div>
-                    <small>${time}</small>
-                </div>
-            `;
-        } else {
+                `;
+
+                container.appendChild(resultDiv);
+            });
+
+            // Add to history (only once for all objects)
+            this.addToHistory(type, data);
+        } else if (type === 'threat') {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'alert alert-danger mb-2';
+
             resultDiv.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <strong>Threat Detected</strong>
+                        <strong>⚠️ Threat Detected</strong>
                         <p class="mb-0 text-sm">${data.threat_type} (${(data.confidence * 100).toFixed(1)}%)</p>
                     </div>
                     <small>${time}</small>
                 </div>
             `;
+
+            container.appendChild(resultDiv);
+            this.addToHistory(type, data);
         }
-
-        container.insertBefore(resultDiv, container.firstChild);
-
-        // Add to history
-        this.addToHistory(type, data);
     }
 
     addToHistory(type, data) {

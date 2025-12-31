@@ -36,6 +36,9 @@ class FlaskConfig:
     HOST = os.environ.get('FLASK_HOST', '127.0.0.1')
     PORT = int(os.environ.get('FLASK_PORT', 5003))
     CORS_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
+    # Option to disable threat detection if it's causing issues
+    # DISABLED BY DEFAULT due to SlowFast model issues
+    ENABLE_THREAT_DETECTION = os.environ.get('ENABLE_THREAT_DETECTION', 'False').lower() == 'true'
 
 # Global instances
 object_detector = None
@@ -71,21 +74,25 @@ def initialize_models():
             object_detector = None
 
         # Initialize threat detector (ThreatDetector has its own fallbacks)
-        logger.info("Initializing threat detector...")
-        threat_weights = config['threat_detection']['model'].get('weights')
-        if threat_weights and not (Path(__file__).parent / threat_weights).exists():
-            logger.warning(f"Threat model weights not found at {threat_weights}, continuing with fallback model")
-            threat_weights = None
+        if FlaskConfig.ENABLE_THREAT_DETECTION:
+            logger.info("Initializing threat detector...")
+            threat_weights = config['threat_detection']['model'].get('weights')
+            if threat_weights and not (Path(__file__).parent / threat_weights).exists():
+                logger.warning(f"Threat model weights not found at {threat_weights}, continuing with fallback model")
+                threat_weights = None
 
-        try:
-            threat_detector = ThreatDetector(
-                model_path=threat_weights,
-                model_type=config['threat_detection']['model']['type'],
-                confidence_threshold=config['threat_detection']['model']['confidence_threshold'],
-                clip_length=config['threat_detection']['model']['clip_length']
-            )
-        except Exception as inner_e:
-            logger.error(f"Failed to initialize ThreatDetector: {inner_e}")
+            try:
+                threat_detector = ThreatDetector(
+                    model_path=threat_weights,
+                    model_type=config['threat_detection']['model']['type'],
+                    confidence_threshold=config['threat_detection']['model']['confidence_threshold'],
+                    clip_length=config['threat_detection']['model']['clip_length']
+                )
+            except Exception as inner_e:
+                logger.error(f"Failed to initialize ThreatDetector: {inner_e}")
+                threat_detector = None
+        else:
+            logger.warning("Threat detection is DISABLED via ENABLE_THREAT_DETECTION=False")
             threat_detector = None
 
         logger.info("Initializing object tracker...")
@@ -271,8 +278,22 @@ def create_app():
             tracked_objects = object_tracker.update(detections)
             left_behind = object_tracker.get_left_behind_objects()
 
-            # Detect threats
-            threat_result = threat_detector.detect(frame)
+            # Detect threats (with error handling)
+            threat_result = {
+                'is_threat': False,
+                'threat_type': None,
+                'confidence': 0.0,
+                'all_scores': {},
+                'status': 'disabled'
+            }
+
+            if threat_detector is not None:
+                try:
+                    threat_result = threat_detector.detect(frame)
+                except Exception as threat_error:
+                    logger.error(f"Threat detection failed: {threat_error}")
+                    threat_result['status'] = 'error'
+                    threat_result['error'] = str(threat_error)
 
             # Prepare response
             result = {

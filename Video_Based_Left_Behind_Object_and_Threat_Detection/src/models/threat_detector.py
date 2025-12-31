@@ -252,13 +252,24 @@ class ThreatDetector:
             # Run inference
             with torch.no_grad():
                 if self.model_type == "slowfast":
-                    # SlowFast requires two pathways
-                    slow_pathway = frames_tensor
-                    # Ensure fast pathway has enough frames
-                    if frames_tensor.shape[2] < 4:
+                    # SlowFast requires two pathways with specific temporal sampling
+                    # Slow pathway: sample every 8th frame (low temporal resolution)
+                    # Fast pathway: sample every 2nd frame (high temporal resolution)
+                    # This creates the typical 1:4 ratio (fast:slow)
+
+                    # Ensure we have enough frames
+                    if frames_tensor.shape[2] < 8:
                         logger.warning(f"Not enough frames for SlowFast: {frames_tensor.shape[2]}")
                         raise ValueError(f"Insufficient frames for SlowFast model: {frames_tensor.shape[2]}")
-                    fast_pathway = frames_tensor[:, :, ::2, :, :]  # Sample every 2nd frame
+
+                    # Create slow pathway (every 8th frame)
+                    slow_pathway = frames_tensor[:, :, ::8, :, :]  # e.g., 32 frames -> 4 frames
+
+                    # Create fast pathway (every 2nd frame)
+                    fast_pathway = frames_tensor[:, :, ::2, :, :]  # e.g., 32 frames -> 16 frames
+
+                    logger.debug(f"SlowFast pathways - Slow: {slow_pathway.shape}, Fast: {fast_pathway.shape}")
+
                     outputs = self.model([slow_pathway, fast_pathway])
                 else:
                     outputs = self.model(frames_tensor)
