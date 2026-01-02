@@ -780,17 +780,20 @@ function renderCheckboxGroup(
         container.appendChild(colDiv);
 
         // Add event listener
-        input.addEventListener("change", function () {
+        input.onchange = function () {
             handleSubjectSelection(this, category, inputType, maxSelection);
             updateSubjectCheckboxStyles(this);
-        });
+        };
 
         // Add click listener to div
-        checkDiv.addEventListener("click", function (e) {
+        checkDiv.onclick = function (e) {
             if (e.target !== input) {
-                input.click();
+                input.checked = !input.checked;
+                if (input.onchange) {
+                    input.onchange();
+                }
             }
-        });
+        };
     });
 }
 

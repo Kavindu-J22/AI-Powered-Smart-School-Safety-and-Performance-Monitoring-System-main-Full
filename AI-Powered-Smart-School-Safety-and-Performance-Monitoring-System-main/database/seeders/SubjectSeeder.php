@@ -24,6 +24,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Primary Sinhala language development - reading, writing, and communication skills',
                 'credits' => 5,
                 'type' => 'Core',
+                'category' => 'First Language',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -33,6 +35,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Primary Tamil language development - reading, writing, and communication skills',
                 'credits' => 5,
                 'type' => 'Core',
+                'category' => 'First Language',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -42,6 +46,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Primary English language skills development',
                 'credits' => 4,
                 'type' => 'Core',
+                'category' => 'Core',
+                'is_required' => true,
                 'status' => 'active',
             ],
             [
@@ -51,6 +57,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Foundation mathematics - numbers, operations, and problem solving',
                 'credits' => 5,
                 'type' => 'Core',
+                'category' => 'Core',
+                'is_required' => true,
                 'status' => 'active',
             ],
             [
@@ -60,6 +68,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Basic understanding of natural and social environment',
                 'credits' => 4,
                 'type' => 'Core',
+                'category' => 'Core',
+                'is_required' => true,
                 'status' => 'active',
             ],
             [
@@ -69,6 +79,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Buddhist religious education and moral values',
                 'credits' => 3,
                 'type' => 'Core',
+                'category' => 'Religion',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -78,6 +90,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Hindu religious education and moral values',
                 'credits' => 3,
                 'type' => 'Core',
+                'category' => 'Religion',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -87,6 +101,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Islamic religious education and moral values',
                 'credits' => 3,
                 'type' => 'Core',
+                'category' => 'Religion',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -96,6 +112,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Christian religious education and moral values',
                 'credits' => 3,
                 'type' => 'Core',
+                'category' => 'Religion',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -105,6 +123,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Art, Music, Dance, and Drama education',
                 'credits' => 3,
                 'type' => 'Core',
+                'category' => 'Aesthetic Studies',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -114,6 +134,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Physical fitness, health awareness, and sports skills',
                 'credits' => 3,
                 'type' => 'Core',
+                'category' => 'Core',
+                'is_required' => true,
                 'status' => 'active',
             ],
             [
@@ -123,6 +145,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Life skills and basic civic education',
                 'credits' => 2,
                 'type' => 'Core',
+                'category' => 'Core',
+                'is_required' => true,
                 'status' => 'active',
             ],
 
@@ -136,6 +160,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Advanced Sinhala language and literature for O/L',
                 'credits' => 5,
                 'type' => 'Core',
+                'category' => 'First Language',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -145,6 +171,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Advanced Tamil language and literature for O/L',
                 'credits' => 5,
                 'type' => 'Core',
+                'category' => 'First Language',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -154,6 +182,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'English language proficiency for O/L examination',
                 'credits' => 5,
                 'type' => 'Core',
+                'category' => 'Core',
+                'is_required' => true,
                 'status' => 'active',
             ],
             [
@@ -163,6 +193,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Comprehensive mathematics for O/L examination',
                 'credits' => 5,
                 'type' => 'Core',
+                'category' => 'Core',
+                'is_required' => true,
                 'status' => 'active',
             ],
             [
@@ -172,6 +204,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Integrated science covering Physics, Chemistry, and Biology',
                 'credits' => 5,
                 'type' => 'Core',
+                'category' => 'Core',
+                'is_required' => true,
                 'status' => 'active',
             ],
             [
@@ -181,6 +215,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Sri Lankan and world history',
                 'credits' => 4,
                 'type' => 'Core',
+                'category' => 'Core',
+                'is_required' => true,
                 'status' => 'active',
             ],
             [
@@ -190,6 +226,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Buddhist philosophy and teachings for O/L',
                 'credits' => 3,
                 'type' => 'Core',
+                'category' => 'Religion',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -199,6 +237,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Hindu philosophy and teachings for O/L',
                 'credits' => 3,
                 'type' => 'Core',
+                'category' => 'Religion',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -208,6 +248,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Islamic studies and teachings for O/L',
                 'credits' => 3,
                 'type' => 'Core',
+                'category' => 'Religion',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -217,6 +259,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Christian studies and teachings for O/L',
                 'credits' => 3,
                 'type' => 'Core',
+                'category' => 'Religion',
+                'is_required' => false,
                 'status' => 'active',
             ],
 
@@ -230,6 +274,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Physical and human geography studies',
                 'credits' => 4,
                 'type' => 'Elective',
+                'category' => 'Elective',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -239,6 +285,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Civic awareness and citizenship education',
                 'credits' => 3,
                 'type' => 'Elective',
+                'category' => 'Elective',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -248,6 +296,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Introduction to business and accounting principles',
                 'credits' => 4,
                 'type' => 'Elective',
+                'category' => 'Elective',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -257,6 +307,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Computer literacy and ICT skills',
                 'credits' => 4,
                 'type' => 'Elective',
+                'category' => 'Elective',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -266,6 +318,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Agricultural science and food technology',
                 'credits' => 4,
                 'type' => 'Elective',
+                'category' => 'Elective',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -275,6 +329,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Advanced physical education and health studies',
                 'credits' => 3,
                 'type' => 'Elective',
+                'category' => 'Elective',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -284,6 +340,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Second language proficiency development',
                 'credits' => 3,
                 'type' => 'Elective',
+                'category' => 'Elective',
+                'is_required' => false,
                 'status' => 'active',
             ],
             [
@@ -293,6 +351,8 @@ class SubjectSeeder extends Seeder
                 'description' => 'Advanced Art, Music, Dance, and Drama',
                 'credits' => 3,
                 'type' => 'Elective',
+                'category' => 'Elective',
+                'is_required' => false,
                 'status' => 'active',
             ],
 
@@ -306,6 +366,9 @@ class SubjectSeeder extends Seeder
                 'description' => 'Advanced study of Sinhala literature and language',
                 'credits' => 5,
                 'type' => 'Arts Stream',
+                'category' => 'Core',
+                'is_required' => false,
+                'stream' => 'Arts',
                 'status' => 'active',
             ],
             [
@@ -315,6 +378,9 @@ class SubjectSeeder extends Seeder
                 'description' => 'Advanced study of Tamil literature and language',
                 'credits' => 5,
                 'type' => 'Arts Stream',
+                'category' => 'Core',
+                'is_required' => false,
+                'stream' => 'Arts',
                 'status' => 'active',
             ],
             [
@@ -324,6 +390,9 @@ class SubjectSeeder extends Seeder
                 'description' => 'Critical study of English literature',
                 'credits' => 5,
                 'type' => 'Arts Stream',
+                'category' => 'Core',
+                'is_required' => false,
+                'stream' => 'Arts',
                 'status' => 'active',
             ],
             [

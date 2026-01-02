@@ -123,23 +123,23 @@ class StudentSeeder extends Seeder
             // Add core subjects (auto-assigned)
             if (isset($subjects['core'])) {
                 foreach ($subjects['core'] as $subject) {
-                    $subjectsToAttach[] = $subject->id;
+                    $subjectsToAttach[] = $subject['id'];
                 }
             }
 
             // Add first language (pick one)
-            if (isset($subjects['first_language']) && $subjects['first_language']->isNotEmpty()) {
-                $subjectsToAttach[] = $subjects['first_language']->random()->id;
+            if (isset($subjects['first_language']) && $subjects['first_language']) {
+                $subjectsToAttach[] = $subjects['first_language'][array_rand($subjects['first_language'])]['id'];
             }
 
             // Add religion (pick one)
-            if (isset($subjects['religion']) && $subjects['religion']->isNotEmpty()) {
-                $subjectsToAttach[] = $subjects['religion']->random()->id;
+            if (isset($subjects['religion']) && $subjects['religion']) {
+                $subjectsToAttach[] = $subjects['religion'][array_rand($subjects['religion'])]['id'];
             }
 
             // Add aesthetic studies (pick one)
-            if (isset($subjects['aesthetic']) && $subjects['aesthetic']->isNotEmpty()) {
-                $subjectsToAttach[] = $subjects['aesthetic']->random()->id;
+            if (isset($subjects['aesthetic']) && $subjects['aesthetic']) {
+                $subjectsToAttach[] = $subjects['aesthetic'][array_rand($subjects['aesthetic'])]['id'];
             }
         }
         // Secondary Education (Grades 6-11)
@@ -147,26 +147,29 @@ class StudentSeeder extends Seeder
             // Add core subjects (auto-assigned)
             if (isset($subjects['core'])) {
                 foreach ($subjects['core'] as $subject) {
-                    $subjectsToAttach[] = $subject->id;
+                    $subjectsToAttach[] = $subject['id'];
                 }
             }
 
             // Add first language (pick one)
-            if (isset($subjects['first_language']) && $subjects['first_language']->isNotEmpty()) {
-                $subjectsToAttach[] = $subjects['first_language']->random()->id;
+            if (isset($subjects['first_language']) && $subjects['first_language']) {
+                $subjectsToAttach[] = $subjects['first_language'][array_rand($subjects['first_language'])]['id'];
             }
 
             // Add religion (pick one)
-            if (isset($subjects['religion']) && $subjects['religion']->isNotEmpty()) {
-                $subjectsToAttach[] = $subjects['religion']->random()->id;
+            if (isset($subjects['religion']) && $subjects['religion']) {
+                $subjectsToAttach[] = $subjects['religion'][array_rand($subjects['religion'])]['id'];
             }
 
             // Add elective subjects (pick 3)
-            if (isset($subjects['elective']) && $subjects['elective']->isNotEmpty()) {
-                $electiveCount = min(3, $subjects['elective']->count());
-                $electives = $subjects['elective']->random($electiveCount);
-                foreach ($electives as $subject) {
-                    $subjectsToAttach[] = $subject->id;
+            if (isset($subjects['elective']) && $subjects['elective']) {
+                $electiveCount = min(3, count($subjects['elective']));
+                $electiveIndices = array_rand($subjects['elective'], $electiveCount);
+                if ($electiveCount === 1) {
+                    $electiveIndices = [$electiveIndices];
+                }
+                foreach ($electiveIndices as $index) {
+                    $subjectsToAttach[] = $subjects['elective'][$index]['id'];
                 }
             }
         }
@@ -177,11 +180,14 @@ class StudentSeeder extends Seeder
                 $availableStreams = array_keys($subjects['streams']);
                 $selectedStream = $availableStreams[array_rand($availableStreams)];
 
-                if (isset($subjects['streams'][$selectedStream]) && $subjects['streams'][$selectedStream]->isNotEmpty()) {
-                    $streamSubjectCount = min(3, $subjects['streams'][$selectedStream]->count());
-                    $streamSubjects = $subjects['streams'][$selectedStream]->random($streamSubjectCount);
-                    foreach ($streamSubjects as $subject) {
-                        $subjectsToAttach[] = $subject->id;
+                if (isset($subjects['streams'][$selectedStream]) && $subjects['streams'][$selectedStream]) {
+                    $streamSubjectCount = min(3, count($subjects['streams'][$selectedStream]));
+                    $streamIndices = array_rand($subjects['streams'][$selectedStream], $streamSubjectCount);
+                    if ($streamSubjectCount === 1) {
+                        $streamIndices = [$streamIndices];
+                    }
+                    foreach ($streamIndices as $index) {
+                        $subjectsToAttach[] = $subjects['streams'][$selectedStream][$index]['id'];
                     }
                 }
             }
@@ -204,60 +210,60 @@ class StudentSeeder extends Seeder
     private function generateStudentData(int $grade, string $section, int $index): array
     {
         $firstNames = [
-            'Emma',
-            'Liam',
-            'Olivia',
-            'Noah',
-            'Ava',
-            'Ethan',
-            'Sophia',
-            'Mason',
-            'Isabella',
-            'Lucas',
-            'Mia',
-            'Oliver',
-            'Amelia',
-            'James',
-            'Harper',
-            'Benjamin',
-            'Evelyn',
-            'Elijah',
-            'Abigail',
-            'William'
+            'Amara',
+            'Nimal',
+            'Kumari',
+            'Ruwan',
+            'Anura',
+            'Chamari',
+            'Saman',
+            'Nilmini',
+            'Mohamed',
+            'Tharindu',
+            'Deepika',
+            'Lakshan',
+            'Priyanthi',
+            'Dinesh',
+            'Malini',
+            'Kamal',
+            'Sujatha',
+            'Roshan',
+            'Indika',
+            'Nadeesha'
         ];
         $middleNames = [
-            'Grace',
-            'Alexander',
-            'Rose',
-            'James',
-            'Nicole',
-            'Christopher',
-            'Elizabeth',
-            'Daniel',
-            'Marie',
-            'William'
+            'Priyantha',
+            'Kumudini',
+            'Chaminda',
+            'Priyadarshani',
+            'Prabath',
+            'Kumari',
+            'Fazal',
+            'Kumara',
+            'Bandara',
+            'Weerasinghe'
         ];
         $lastNames = [
-            'Anderson',
-            'Johnson',
-            'Williams',
-            'Brown',
-            'Davis',
-            'Miller',
-            'Wilson',
-            'Moore',
-            'Taylor',
-            'Garcia',
-            'Martinez',
-            'Robinson',
-            'Clark',
-            'Rodriguez',
-            'Lewis',
-            'Lee',
-            'Walker',
-            'Hall',
-            'Allen',
-            'Young'
+            'Fernando',
+            'Silva',
+            'Perera',
+            'Jayawardena',
+            'Gunawardena',
+            'Bandara',
+            'Rajapaksa',
+            'Hussain',
+            'Weerasinghe',
+            'Wickramasinghe',
+            'Abeysinghe',
+            'Dissanayake',
+            'Senanayake',
+            'Jayasinghe',
+            'Mendis',
+            'De Silva',
+            'Fernando',
+            'Rathnayake',
+            'Samarasinghe',
+            'Wijesinghe'
         ];
 
         $genders = ['M', 'F'];
@@ -275,7 +281,7 @@ class StudentSeeder extends Seeder
         $gender = $genders[($grade + $index) % 2];
         $religion = $religions[$grade % count($religions)];
 
-        $email = strtolower($firstName . '.' . $lastName . $grade . $section . '@student.school.edu');
+        $email = strtolower($firstName . '.' . $lastName . $grade . $section . '@student.school.lk');
 
         return [
             'first_name' => $firstName,
@@ -283,18 +289,18 @@ class StudentSeeder extends Seeder
             'last_name' => $lastName,
             'date_of_birth' => sprintf('%04d-%02d-%02d', $birthYear, $birthMonth, $birthDay),
             'gender' => $gender,
-            'nationality' => 'American',
+            'nationality' => 'Sri Lankan',
             'religion' => $religion,
-            'home_language' => 'English',
+            'home_language' => 'Sinhala',
             'enrollment_date' => '2024-08-20',
-            'address_line1' => ($index * 100 + $grade) . ' ' . $lastNames[$grade % count($lastNames)] . ' Street',
-            'address_line2' => ($index % 2 == 0) ? 'Apt ' . ($index + 1) : null,
-            'city' => 'Springfield',
-            'state' => 'Illinois',
-            'postal_code' => '627' . str_pad($grade, 2, '0', STR_PAD_LEFT),
-            'country' => 'USA',
-            'home_phone' => '+1-217-555-' . str_pad(($grade * 100 + $index), 4, '0', STR_PAD_LEFT),
-            'mobile_phone' => '+1-217-555-' . str_pad(($grade * 100 + $index + 50), 4, '0', STR_PAD_LEFT),
+            'address_line1' => ($index * 100 + $grade) . ' ' . $lastNames[$grade % count($lastNames)] . ' Road',
+            'address_line2' => ($index % 2 == 0) ? 'House ' . ($index + 1) : null,
+            'city' => ['Colombo', 'Kandy', 'Galle', 'Jaffna', 'Anuradhapura'][$grade % 5],
+            'state' => ['Western Province', 'Central Province', 'Southern Province', 'Northern Province', 'North Central Province'][$grade % 5],
+            'postal_code' => ['00300', '20000', '80000', '40000', '50000'][$grade % 5],
+            'country' => 'Sri Lanka',
+            'home_phone' => '+94-11-234-' . str_pad(($grade * 100 + $index), 4, '0', STR_PAD_LEFT),
+            'mobile_phone' => '+94-77-123-' . str_pad(($grade * 100 + $index), 4, '0', STR_PAD_LEFT),
             'email' => $email,
         ];
     }
