@@ -41,16 +41,16 @@ class ThreatDetector:
         self.detection_history: deque = deque(maxlen=5)
         self.consecutive_required = 3  # Must detect threat 3 times in a row
 
-        # Energy-based filtering - INCREASED to reduce false positives
-        self.min_energy_threshold = 0.05  # Increased from 0.03 - ignore very low energy
-        self.high_energy_threshold = 0.30  # Increased from 0.20 - screaming/shouting needs high energy
+        # Energy-based filtering - REDUCED for better detection of crying and glass breaking
+        self.min_energy_threshold = 0.02  # Reduced from 0.05 - detect quieter sounds like crying
+        self.high_energy_threshold = 0.25  # Reduced from 0.30 - allow detection of moderate energy threats
 
         # Class-specific thresholds - ADJUSTED for better accuracy
         self.class_thresholds = {
-            'crying': 0.82,       # Lowered from 0.88 - crying is often quieter
+            'crying': 0.65,       # Reduced from 0.82 - crying is often quieter and needs lower threshold
             'screaming': 0.96,    # Increased from 0.94 - very high to prevent false positives
             'shouting': 0.97,     # Increased from 0.95 - very high to prevent false positives from normal talking
-            'glass_breaking': 0.78,  # Lowered from 0.85 - distinctive sound, should be easier to detect
+            'glass_breaking': 0.60,  # Reduced from 0.78 - distinctive sound, easier detection needed
             'normal': 0.0         # Always allow normal
         }
 
@@ -293,37 +293,37 @@ class ThreatDetector:
             # Minimal false positives - only very clear threats
             self.consecutive_required = 4
             self.class_thresholds = {
-                'crying': 0.88,
+                'crying': 0.70,
                 'screaming': 0.98,
                 'shouting': 0.99,
-                'glass_breaking': 0.85,
+                'glass_breaking': 0.65,
                 'normal': 0.0
             }
-            self.min_energy_threshold = 0.08
-            self.high_energy_threshold = 0.35
+            self.min_energy_threshold = 0.04
+            self.high_energy_threshold = 0.30
         elif level == 'high':
             # More sensitive, some false positives possible
             self.consecutive_required = 2
             self.class_thresholds = {
-                'crying': 0.75,
+                'crying': 0.55,
                 'screaming': 0.90,
                 'shouting': 0.92,
-                'glass_breaking': 0.70,
+                'glass_breaking': 0.50,
                 'normal': 0.0
             }
-            self.min_energy_threshold = 0.03
-            self.high_energy_threshold = 0.20
+            self.min_energy_threshold = 0.015
+            self.high_energy_threshold = 0.18
         else:  # normal - balanced
             self.consecutive_required = 3
             self.class_thresholds = {
-                'crying': 0.82,
+                'crying': 0.65,
                 'screaming': 0.96,
                 'shouting': 0.97,
-                'glass_breaking': 0.78,
+                'glass_breaking': 0.60,
                 'normal': 0.0
             }
-            self.min_energy_threshold = 0.05
-            self.high_energy_threshold = 0.30
+            self.min_energy_threshold = 0.02
+            self.high_energy_threshold = 0.25
 
         return self.get_sensitivity_settings()
 
