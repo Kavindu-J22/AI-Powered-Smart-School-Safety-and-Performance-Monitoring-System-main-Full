@@ -140,19 +140,45 @@ class AnswerEvaluator:
         }
     
     def _check_key_points(self, answer: str, key_points: List[str]) -> float:
-        """Check how many key points are covered in the answer"""
+        """
+        Check how many key points are covered using semantic similarity
+        (with word-overlap fallback for graceful degradation).
+
+        Scoring per key point:
+          - 1.0  if semantic similarity ≥ 0.40 (clearly addressed)
+          - 0.5  if word-overlap ratio ≥ 0.35  (partially addressed)
+          - 0.0  otherwise
+        """
         if not key_points:
             return 1.0
-        
+
         answer_lower = answer.lower()
-        covered = 0
-        
+        covered = 0.0
+
         for point in key_points:
-            point_words = set(point.lower().split())
-            if any(word in answer_lower for word in point_words if len(word) > 3):
-                covered += 1
-        
-        return covered / len(key_points)
+            # Primary: semantic similarity via NLP processor
+            if self.nlp_processor:
+                try:
+                    sim = self.nlp_processor.calculate_similarity(answer, point)
+                    if sim >= 0.40:
+                        covered += 1.0
+                        continue
+                    # Secondary: word-overlap check for partial credit
+                    point_words = {w.lower() for w in point.split() if len(w) > 3}
+                    if point_words:
+                        matched = sum(1 for w in point_words if w in answer_lower)
+                        if matched / len(point_words) >= 0.35:
+                            covered += 0.5
+                    continue
+                except Exception:
+                    pass  # Fall through to word-overlap fallback
+
+            # Fallback: simple word-presence check
+            point_words = {w.lower() for w in point.split() if len(w) > 3}
+            if point_words and any(w in answer_lower for w in point_words):
+                covered += 1.0
+
+        return min(1.0, covered / len(key_points))
     
     def _check_length_adequacy(self, answer: str, question_type: str) -> float:
         """Check if answer length is appropriate"""
@@ -182,12 +208,31 @@ class AnswerEvaluator:
         return valid_sentences / len(sentences)
     
     def _get_missing_points(self, answer: str, key_points: List[str]) -> List[str]:
-        """Identify which key points are missing"""
+        """Identify which key points are not adequately covered in the answer."""
         missing = []
         answer_lower = answer.lower()
         for point in key_points:
-            point_words = set(point.lower().split())
-            if not any(word in answer_lower for word in point_words if len(word) > 3):
+            covered = False
+            if self.nlp_processor:
+                try:
+                    sim = self.nlp_processor.calculate_similarity(answer, point)
+                    if sim >= 0.40:
+                        covered = True
+                    else:
+                        point_words = {w.lower() for w in point.split() if len(w) > 3}
+                        if point_words:
+                            matched = sum(1 for w in point_words if w in answer_lower)
+                            covered = (matched / len(point_words)) >= 0.35
+                except Exception:
+                    pass
+
+            if not covered:
+                # Final fallback: basic word-presence check
+                point_words = {w.lower() for w in point.split() if len(w) > 3}
+                if point_words and any(w in answer_lower for w in point_words):
+                    covered = True
+
+            if not covered:
                 missing.append(point)
         return missing
     
