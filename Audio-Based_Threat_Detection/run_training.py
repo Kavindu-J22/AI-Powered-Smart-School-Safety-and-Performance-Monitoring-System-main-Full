@@ -29,12 +29,12 @@ def main():
     print_banner()
     
     # Initialize
-    print("\n1️⃣  Initializing...")
+    print("\n[1/5] Initializing...")
     data_loader = AudioDataLoader()
     trainer = ModelTrainer()
     
     # Load dataset
-    print("\n2️⃣  Loading and preparing dataset...")
+    print("\n[2/5] Loading and preparing dataset...")
     try:
         dataset = data_loader.prepare_dataset(
             test_size=0.2,
@@ -53,7 +53,7 @@ def main():
     classes = dataset['classes']
     
     # Train model
-    print("\n3️⃣  Training model...")
+    print("\n[3/5] Training model...")
     history = trainer.train(
         X_train, y_train,
         X_val=X_test, y_val=y_test,
@@ -62,11 +62,11 @@ def main():
     )
     
     # Evaluate model
-    print("\n4️⃣  Evaluating model...")
+    print("\n[4/5] Evaluating model...")
     results = trainer.evaluate(X_test, y_test, classes)
     
     # Save plots
-    print("\n5️⃣  Saving training plots...")
+    print("\n[5/5] Saving training plots...")
     os.makedirs(LOGS_DIR, exist_ok=True)
     trainer.plot_training_history(save_path=str(LOGS_DIR / "training_history.png"))
     trainer.plot_confusion_matrix(save_path=str(LOGS_DIR / "confusion_matrix.png"))
@@ -82,11 +82,11 @@ def main():
     print("\n" + "=" * 70)
     print("   TRAINING COMPLETE")
     print("=" * 70)
-    print(f"\n✅ Model saved to: {trainer.model.model_path}")
-    print(f"✅ Test Accuracy: {results['accuracy'] * 100:.2f}%")
-    print(f"✅ Classes: {classes}")
-    
-    print("\n📊 Per-class Performance:")
+    print(f"\n[OK] Model saved to: {trainer.model.model_path}")
+    print(f"[OK] Test Accuracy: {results['accuracy'] * 100:.2f}%")
+    print(f"[OK] Classes: {classes}")
+
+    print("\n[RESULTS] Per-class Performance:")
     for cls in classes:
         if cls in results['classification_report']:
             metrics = results['classification_report'][cls]
@@ -106,7 +106,7 @@ def main():
 def demo():
     """Quick demo with sample audio"""
     print_banner()
-    print("\n🎯 Running Demo Mode...")
+    print("\n[DEMO] Running Demo Mode...")
     
     from models.threat_detector import ThreatDetector
     
@@ -120,17 +120,17 @@ def demo():
         print("No samples found for demo")
         return
     
-    print(f"\n📝 Testing with sample labeled: {label}")
-    
+    print(f"\n[INFO] Testing with sample labeled: {label}")
+
     # Run detection
     result = detector.analyze_audio(sample, enable_speech=False)
-    
-    print(f"\n📊 Detection Results:")
+
+    print(f"\n[RESULTS] Detection Results:")
     print(f"   Is Threat: {result['is_threat']}")
     print(f"   Threat Level: {result['threat_level']}")
     print(f"   Confidence: {result['confidence']:.3f}")
     print(f"   Processing Time: {result['processing_time']}s")
-    
+
     if result['non_speech_result']:
         print(f"\n   Non-Speech Analysis:")
         print(f"      Detected Class: {result['non_speech_result']['detected_class']}")

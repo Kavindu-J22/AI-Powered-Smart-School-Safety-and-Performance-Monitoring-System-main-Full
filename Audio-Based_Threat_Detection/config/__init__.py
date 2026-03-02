@@ -29,10 +29,11 @@ class ModelConfig:
     SPEECH_THREAT_MODEL_PATH = MODELS_DIR / "speech_threat_model.h5"
     
     # Training Parameters
-    BATCH_SIZE = 32
-    EPOCHS = 50
+    BATCH_SIZE = 64
+    EPOCHS = 100
     LEARNING_RATE = 0.001
     VALIDATION_SPLIT = 0.2
+    EARLY_STOPPING_PATIENCE = 15
     
     # Detection Thresholds
     NON_SPEECH_THRESHOLD = 0.7

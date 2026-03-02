@@ -179,3 +179,41 @@ class ModelTrainer:
 
         return summary
 
+    def save_results(self, save_dir: str = None) -> None:
+        """
+        Save training history plots, confusion matrix, and summary JSON.
+        Called by retrain_model_fixed.py after training + evaluation.
+        """
+        import json
+        save_dir = save_dir or str(LOGS_DIR)
+        os.makedirs(save_dir, exist_ok=True)
+
+        # Save training history plot
+        history_plot = os.path.join(save_dir, 'training_history.png')
+        self.plot_training_history(save_path=history_plot)
+
+        # Save confusion matrix plot
+        if self.evaluation_results is not None:
+            cm_plot = os.path.join(save_dir, 'confusion_matrix.png')
+            self.plot_confusion_matrix(save_path=cm_plot)
+
+        # Save JSON summary
+        summary = self.get_summary()
+        # Make summary JSON-serialisable
+        for k, v in summary.items():
+            if isinstance(v, np.ndarray):
+                summary[k] = v.tolist()
+            elif isinstance(v, np.floating):
+                summary[k] = float(v)
+            elif isinstance(v, np.integer):
+                summary[k] = int(v)
+
+        summary_path = os.path.join(save_dir, 'training_summary.json')
+        with open(summary_path, 'w') as f:
+            json.dump(summary, f, indent=2, default=str)
+
+        print(f"\nResults saved to: {save_dir}")
+        print(f"  - training_history.png")
+        print(f"  - confusion_matrix.png")
+        print(f"  - training_summary.json")
+

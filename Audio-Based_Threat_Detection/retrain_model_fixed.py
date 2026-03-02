@@ -70,10 +70,8 @@ def main():
     print("\n4️⃣  Evaluating model...")
     results = trainer.evaluate(X_test, y_test, classes)
     
-    # Plot results
-    print("\n5️⃣  Generating visualizations...")
-    trainer.plot_training_history()
-    trainer.plot_confusion_matrix()
+    # Save plots + JSON summary
+    print("\n5️⃣  Generating visualizations and saving results...")
     trainer.save_results()
     
     print("\n" + "="*70)

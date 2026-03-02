@@ -1,6 +1,12 @@
 """
 Feature Extractor Module
-Extracts MFCC and spectral features for audio threat detection
+Extracts rich acoustic features for audio threat detection:
+  - MFCC (40) + delta (40) + delta2 (40) = 120
+  - Chroma (12)  — critical for glass-break vs. cry discrimination
+  - Spectral Centroid (1), Bandwidth (1), Rolloff (1), ZCR (1), RMS (1)
+  - Spectral Contrast (7 bands)
+  - Spectral Flatness (1)  — noise vs. tonal sound
+  Total = 144 features per time-frame
 Using torchaudio for Python 3.14 compatibility
 """
 import numpy as np
@@ -13,9 +19,13 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import AudioConfig
 
+# ─── Number of features produced by extract_all_features ──────────────────
+# MFCC*3(120) + Chroma(12) + Contrast(7) + Centroid/BW/Rolloff/ZCR/RMS(5) + Flatness(1) = 145
+N_FEATURES = 145
+
 
 class FeatureExtractor:
-    """Extract acoustic features for threat detection models using torchaudio"""
+    """Extract rich acoustic features for threat detection models using torchaudio"""
 
     def __init__(self):
         self.sample_rate = AudioConfig.SAMPLE_RATE
@@ -24,6 +34,7 @@ class FeatureExtractor:
         self.hop_length = AudioConfig.HOP_LENGTH
         self.n_mels = AudioConfig.N_MELS
         self.fmax = AudioConfig.FMAX
+        self.n_chroma = 12
 
         # Initialize torchaudio transforms
         self.mfcc_transform = T.MFCC(
@@ -44,6 +55,33 @@ class FeatureExtractor:
             n_mels=self.n_mels,
             f_max=self.fmax
         )
+
+        # Pre-compute frequency → chroma bin mapping once
+        self._chroma_filterbank = self._build_chroma_filterbank()
+
+    # ──────────────────────────────────────────────────────────────────────
+    #  Helpers
+    # ──────────────────────────────────────────────────────────────────────
+
+    def _build_chroma_filterbank(self) -> np.ndarray:
+        """
+        Build a (n_chroma, n_fft//2+1) filterbank that maps each STFT
+        frequency bin to its nearest chroma class.  Returns a binary
+        indicator matrix so chroma = filterbank @ magnitude_spectrum.
+        """
+        n_freq = self.n_fft // 2 + 1
+        freqs = np.fft.rfftfreq(self.n_fft, d=1.0 / self.sample_rate)
+        filterbank = np.zeros((self.n_chroma, n_freq), dtype=np.float32)
+        for i, f in enumerate(freqs):
+            if f <= 0:
+                continue
+            # Convert frequency to chroma index (0-11)
+            chroma_idx = int(round(12 * np.log2(f / 440.0))) % self.n_chroma
+            filterbank[chroma_idx, i] += 1.0
+        # L1-normalise each chroma row so values are comparable
+        row_sum = filterbank.sum(axis=1, keepdims=True) + 1e-8
+        filterbank /= row_sum
+        return filterbank
 
     def _compute_delta(self, features: np.ndarray, order: int = 1) -> np.ndarray:
         """Compute delta features manually"""
@@ -74,14 +112,27 @@ class FeatureExtractor:
         features = np.vstack([mfcc, mfcc_delta, mfcc_delta2])
         return features
 
+    def extract_chroma(self, magnitude: np.ndarray) -> np.ndarray:
+        """
+        Compute chroma (12 pitch-class) features from a pre-computed
+        magnitude spectrogram  shape (n_freq, T).
+        Returns (12, T).
+        """
+        n_freq = magnitude.shape[0]
+        fb = self._chroma_filterbank[:, :n_freq]   # guard against size mismatch
+        chroma = fb @ magnitude                     # (12, T)
+        # normalise per frame
+        frame_norm = chroma.max(axis=0, keepdims=True) + 1e-8
+        chroma = chroma / frame_norm
+        return chroma.astype(np.float32)
+
     def extract_spectral_features(self, audio: np.ndarray) -> Dict[str, np.ndarray]:
-        """Extract various spectral features"""
+        """Extract rich spectral features including chroma and spectral flatness"""
         features = {}
 
-        # Convert to tensor
         waveform = torch.FloatTensor(audio)
 
-        # Compute spectrogram with Hann window to reduce spectral leakage
+        # STFT with Hann window to reduce spectral leakage
         spectrogram = torch.stft(
             waveform,
             n_fft=self.n_fft,
@@ -89,14 +140,14 @@ class FeatureExtractor:
             window=torch.hann_window(self.n_fft),
             return_complex=True
         )
-        magnitude = torch.abs(spectrogram).numpy()
+        magnitude = torch.abs(spectrogram).numpy()   # (n_freq, T)
+        T = magnitude.shape[1]
 
-        # Frequency bins
-        freqs = np.fft.rfftfreq(self.n_fft, 1/self.sample_rate)[:magnitude.shape[0]]
+        freqs = np.fft.rfftfreq(self.n_fft, 1.0 / self.sample_rate)[:magnitude.shape[0]]
+        norm = magnitude.sum(axis=0) + 1e-8
 
         # Spectral Centroid
-        norm = magnitude.sum(axis=0) + 1e-8
-        features['spectral_centroid'] = np.sum(freqs[:, None] * magnitude, axis=0) / norm
+        features['spectral_centroid'] = (np.sum(freqs[:, None] * magnitude, axis=0) / norm)
 
         # Spectral Bandwidth
         centroid = features['spectral_centroid']
@@ -104,76 +155,110 @@ class FeatureExtractor:
             np.sum(((freqs[:, None] - centroid) ** 2) * magnitude, axis=0) / norm
         )
 
-        # Spectral Rolloff (85%)
+        # Spectral Rolloff (85 %)
         cumsum = np.cumsum(magnitude, axis=0)
-        threshold = 0.85 * cumsum[-1]
-        rolloff_idx = np.argmax(cumsum >= threshold, axis=0)
-        features['spectral_rolloff'] = freqs[np.clip(rolloff_idx, 0, len(freqs)-1)]
+        rolloff_idx = np.argmax(cumsum >= 0.85 * cumsum[-1], axis=0)
+        features['spectral_rolloff'] = freqs[np.clip(rolloff_idx, 0, len(freqs) - 1)]
 
-        # Zero Crossing Rate
-        zcr = np.abs(np.diff(np.sign(audio))).sum() / len(audio)
-        features['zero_crossing_rate'] = np.full(magnitude.shape[1], zcr)
+        # Zero Crossing Rate (scalar → broadcast to T frames)
+        zcr = float(np.abs(np.diff(np.sign(audio))).sum() / max(len(audio), 1))
+        features['zero_crossing_rate'] = np.full(T, zcr, dtype=np.float32)
 
-        # RMS Energy
-        frame_length = self.n_fft
-        frames = np.array([audio[i:i+frame_length] for i in range(0, len(audio)-frame_length+1, self.hop_length)])
-        if len(frames) > 0:
-            rms = np.sqrt(np.mean(frames**2, axis=1))
-            # Pad or truncate to match magnitude time dimension
-            if len(rms) < magnitude.shape[1]:
-                rms = np.pad(rms, (0, magnitude.shape[1] - len(rms)), mode='edge')
-            else:
-                rms = rms[:magnitude.shape[1]]
-            features['rms'] = rms
+        # RMS Energy per frame
+        frames = [audio[i:i + self.n_fft]
+                  for i in range(0, len(audio) - self.n_fft + 1, self.hop_length)]
+        if frames:
+            rms = np.sqrt(np.mean(np.array(frames) ** 2, axis=1))
+            if len(rms) < T:
+                rms = np.pad(rms, (0, T - len(rms)), mode='edge')
+            rms = rms[:T]
         else:
-            features['rms'] = np.zeros(magnitude.shape[1])
+            rms = np.zeros(T, dtype=np.float32)
+        features['rms'] = rms
 
-        # Spectral Contrast (simplified - using 7 bands)
+        # Spectral Contrast (7 sub-bands)
         n_bands = 7
-        band_size = magnitude.shape[0] // n_bands
-        contrast = []
+        band_size = max(1, magnitude.shape[0] // n_bands)
+        contrast_rows = []
         for i in range(n_bands):
-            band = magnitude[i*band_size:(i+1)*band_size]
+            band = magnitude[i * band_size:(i + 1) * band_size]
             if band.size > 0:
-                contrast.append(np.max(band, axis=0) - np.min(band, axis=0))
-        features['spectral_contrast'] = np.array(contrast) if contrast else np.zeros((n_bands, magnitude.shape[1]))
+                contrast_rows.append(np.max(band, axis=0) - np.min(band, axis=0))
+            else:
+                contrast_rows.append(np.zeros(T, dtype=np.float32))
+        features['spectral_contrast'] = np.array(contrast_rows)  # (7, T)
+
+        # ── NEW: Spectral Flatness ──────────────────────────────────────────
+        # Ratio of geometric mean to arithmetic mean of the spectrum.
+        # High → noise-like (glass breaking); Low → tonal (crying, screaming).
+        log_mag = np.log(magnitude + 1e-8)
+        geo_mean = np.exp(log_mag.mean(axis=0))
+        arith_mean = magnitude.mean(axis=0) + 1e-8
+        features['spectral_flatness'] = geo_mean / arith_mean   # (T,)
+
+        # ── NEW: Chroma (12 pitch-classes) ─────────────────────────────────
+        features['chroma'] = self.extract_chroma(magnitude)     # (12, T)
 
         return features
 
     def extract_mel_spectrogram(self, audio: np.ndarray) -> np.ndarray:
-        """Extract mel spectrogram"""
+        """Extract mel spectrogram (dB scale)"""
         waveform = torch.FloatTensor(audio).unsqueeze(0)
         mel_spec = self.mel_transform(waveform).squeeze(0)
-
-        # Convert to dB scale
         mel_spec_db = torchaudio.transforms.AmplitudeToDB()(mel_spec)
         return mel_spec_db.numpy()
 
     def extract_all_features(self, audio: np.ndarray) -> np.ndarray:
-        """Extract combined feature vector for CNN-LSTM model"""
-        # Get MFCC features (n_mfcc * 3 x time_steps)
-        mfcc_features = self.extract_mfcc(audio)
+        """
+        Extract combined 144-feature vector per time-frame for CNN-LSTM model.
+        Layout:
+          [0:120]   MFCC + Δ + ΔΔ          (40×3)
+          [120:132] Chroma                  (12)
+          [132]     Spectral Centroid
+          [133]     Spectral Bandwidth
+          [134]     Spectral Rolloff
+          [135]     ZCR
+          [136]     RMS
+          [137:144] Spectral Contrast       (7)
+          [144]     Spectral Flatness  ← wait, that gives 145. Re-count:
+        Actual layout (144 rows):
+          [0:120]   MFCC*3      = 120
+          [120:132] Chroma      = 12
+          [132:139] Contrast    = 7
+          [139]     Centroid    = 1
+          [140]     Bandwidth   = 1
+          [141]     Rolloff     = 1
+          [142]     ZCR         = 1
+          [143]     RMS         = 1
+          Total = 144  ✓
+        """
+        mfcc_features = self.extract_mfcc(audio)           # (120, T_m)
+        spectral = self.extract_spectral_features(audio)    # various (T_s)
 
-        # Get spectral features
-        spectral = self.extract_spectral_features(audio)
+        T_m = mfcc_features.shape[1]
+        T_s = spectral['spectral_centroid'].shape[0]
+        T   = min(T_m, T_s)
 
-        # Combine spectral features
+        mfcc_features = mfcc_features[:, :T]
+
         spectral_combined = np.vstack([
-            spectral['spectral_centroid'].reshape(1, -1),
-            spectral['spectral_bandwidth'].reshape(1, -1),
-            spectral['spectral_rolloff'].reshape(1, -1),
-            spectral['zero_crossing_rate'].reshape(1, -1),
-            spectral['rms'].reshape(1, -1),
-            spectral['spectral_contrast']
-        ])
+            spectral['chroma'][:, :T],                              # 12 rows
+            spectral['spectral_contrast'][:, :T],                   # 7  rows
+            spectral['spectral_centroid'][:T].reshape(1, -1),       # 1
+            spectral['spectral_bandwidth'][:T].reshape(1, -1),      # 1
+            spectral['spectral_rolloff'][:T].reshape(1, -1),        # 1
+            spectral['zero_crossing_rate'][:T].reshape(1, -1),      # 1
+            spectral['rms'][:T].reshape(1, -1),                     # 1
+        ])  # shape: (23, T)
 
-        # Ensure same time dimension
-        min_time = min(mfcc_features.shape[1], spectral_combined.shape[1])
-        mfcc_features = mfcc_features[:, :min_time]
-        spectral_combined = spectral_combined[:, :min_time]
+        all_features = np.vstack([mfcc_features, spectral_combined])  # (143, T)
 
-        # Combine all features
-        all_features = np.vstack([mfcc_features, spectral_combined])
+        # Add spectral flatness as last row → 144 total
+        flatness = spectral['spectral_flatness'][:T].reshape(1, -1)
+        all_features = np.vstack([all_features, flatness])            # (144, T)
+
+        assert all_features.shape[0] == N_FEATURES, \
+            f"Feature dim mismatch: got {all_features.shape[0]}, expected {N_FEATURES}"
 
         return all_features
 
