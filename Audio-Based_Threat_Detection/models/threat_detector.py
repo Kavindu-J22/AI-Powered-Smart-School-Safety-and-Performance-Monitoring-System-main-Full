@@ -245,14 +245,34 @@ class ThreatDetector:
             
             # Determine overall threat level
             if result['is_threat']:
-                if result['confidence'] >= 0.8:
-                    result['threat_level'] = 'critical'
-                elif result['confidence'] >= 0.6:
-                    result['threat_level'] = 'high'
-                elif result['confidence'] >= 0.4:
-                    result['threat_level'] = 'medium'
+                # For speech-only threats, use the speech detector's threat level directly
+                if result['threat_type'] == 'speech' and 'speech_result' in result:
+                    speech_threat_level = result['speech_result'].get('threat_level', 'none')
+                    # Map speech threat levels to overall threat levels
+                    if speech_threat_level == 'high':
+                        result['threat_level'] = 'high'
+                    elif speech_threat_level == 'medium':
+                        result['threat_level'] = 'medium'
+                    elif speech_threat_level == 'low':
+                        result['threat_level'] = 'low'
+                    else:
+                        # Fallback to confidence-based if speech level is 'none'
+                        if result['confidence'] >= 0.6:
+                            result['threat_level'] = 'high'
+                        elif result['confidence'] >= 0.4:
+                            result['threat_level'] = 'medium'
+                        else:
+                            result['threat_level'] = 'low'
+                # For non-speech or combined threats, use confidence-based levels
                 else:
-                    result['threat_level'] = 'low'
+                    if result['confidence'] >= 0.8:
+                        result['threat_level'] = 'critical'
+                    elif result['confidence'] >= 0.6:
+                        result['threat_level'] = 'high'
+                    elif result['confidence'] >= 0.4:
+                        result['threat_level'] = 'medium'
+                    else:
+                        result['threat_level'] = 'low'
         
         except Exception as e:
             result['details']['error'] = str(e)
