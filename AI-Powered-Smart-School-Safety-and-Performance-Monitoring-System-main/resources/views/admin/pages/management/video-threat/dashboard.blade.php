@@ -18,7 +18,7 @@
                     <div>
                         <h4 class="mb-0">
                             <i class="material-symbols-rounded me-2">videocam</i>
-                            Video Threat & Object Detection
+                            Left Behind Object Detection System
                         </h4>
                         <p class="text-sm text-secondary mb-0">Real-time video monitoring for left-behind objects and threats</p>
                     </div>

@@ -136,16 +136,26 @@ class NLPProcessor:
             return self._simple_similarity(text1, text2)
     
     def _simple_similarity(self, text1: str, text2: str) -> float:
-        """Simple word overlap similarity"""
-        words1 = set(self._tokenize(text1.lower()))
-        words2 = set(self._tokenize(text2.lower()))
-        
+        """
+        Word overlap (Jaccard) similarity with stopword filtering.
+        Removing stopwords prevents common words from inflating the score
+        and makes the comparison more meaningful for educational content.
+        """
+        def meaningful_words(text: str) -> set:
+            return {
+                w for w in self._tokenize(text.lower())
+                if w not in self.stopwords and len(w) > 2
+            }
+
+        words1 = meaningful_words(text1)
+        words2 = meaningful_words(text2)
+
         if not words1 or not words2:
             return 0.0
-        
+
         intersection = words1.intersection(words2)
         union = words1.union(words2)
-        
+
         return len(intersection) / len(union)
     
     def get_embeddings(self, texts: List[str]) -> np.ndarray:

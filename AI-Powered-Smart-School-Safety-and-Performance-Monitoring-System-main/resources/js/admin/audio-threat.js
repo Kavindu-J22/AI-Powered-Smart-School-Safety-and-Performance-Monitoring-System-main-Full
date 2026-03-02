@@ -250,19 +250,22 @@ class AudioThreatDetector {
     
     updateNonSpeechResults(result) {
         if (!result) return;
-        
+
         const container = document.getElementById('nonSpeechResults');
         const probs = result.all_probabilities || {};
-        
+
         let html = `<div class="result-item">
             <div class="d-flex justify-content-between">
                 <span>Detected: <strong class="text-capitalize">${result.detected_class}</strong></span>
                 <span class="badge ${result.is_threat ? 'bg-danger' : 'bg-success'}">${(result.confidence * 100).toFixed(1)}%</span>
             </div>
         </div>`;
-        
-        // Add probability bars
+
+        // Add probability bars (exclude 'normal' class)
         for (const [cls, prob] of Object.entries(probs)) {
+            // Skip 'normal' class from display
+            if (cls === 'normal') continue;
+
             html += `<div class="result-item">
                 <div class="d-flex justify-content-between text-sm">
                     <span class="text-capitalize">${cls.replace('_', ' ')}</span>
@@ -273,7 +276,7 @@ class AudioThreatDetector {
                 </div>
             </div>`;
         }
-        
+
         container.innerHTML = html;
     }
     

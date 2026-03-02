@@ -160,60 +160,132 @@ class HomeworkAIService
     }
 
     /**
-     * Fallback question generation when AI service is unavailable
+     * Fallback question generation when AI service is unavailable.
+     * Uses lesson content, learning outcomes and keywords to produce
+     * content-relevant questions with randomised MCQ correct-answer positions.
      */
     protected function fallbackGenerateQuestions(array $lessonData, int $numMcq, int $numShort, int $numDescriptive): array
     {
         $questions = [];
-        $topics = $lessonData['topics'] ?? ['Topic'];
-        $unit = $lessonData['unit'] ?? 'Unit';
-        $subject = $lessonData['subject'] ?? 'General';
+        $topics           = $lessonData['topics']            ?? ['Topic'];
+        $unit             = $lessonData['unit']              ?? 'Unit';
+        $subject          = $lessonData['subject']           ?? 'General';
+        $learningOutcomes = $lessonData['learning_outcomes'] ?? [];
+        $content          = $lessonData['content']           ?? '';
+
+        // Question-stem templates (varied to avoid repetition)
+        $mcqStems   = [
+            "What is the primary function of {topic}?",
+            "Which of the following best describes {topic}?",
+            "In the context of {unit}, {topic} is responsible for:",
+            "Which statement about {topic} is correct?",
+        ];
+        $shortStems = [
+            "Explain the process of {topic}.",
+            "Describe the relationship between {topic} and {unit}.",
+            "What are the key characteristics of {topic}?",
+            "Why is {topic} important in {unit}?",
+        ];
+        $descStems  = [
+            "Discuss in detail the role of {topic} in {unit}.",
+            "Analyze {topic} and explain its significance in {unit}. Provide examples.",
+            "Critically examine {topic} and its relationship to other concepts in {unit}.",
+        ];
+
+        $usedMcqStems  = [];
+        $usedShortStems = [];
+        $usedDescStems  = [];
 
         for ($i = 0; $i < $numMcq; $i++) {
             $topic = $topics[$i % count($topics)];
+
+            // Pick an unused question stem
+            $stem = $this->pickUnusedTemplate($mcqStems, $usedMcqStems);
+            $questionText = str_replace(['{topic}', '{unit}'], [$topic, $unit], $stem);
+
+            // Build 4 options: correct option first, then 3 distractors
             $options = $this->generateMcqOptions($topic, $unit, $subject);
 
+            // Override correct option with a content-derived statement when possible
+            $contentCorrect = $this->extractContentOption($topic, $content, $learningOutcomes);
+            if ($contentCorrect) {
+                $options[0] = $contentCorrect;
+            }
+
+            // SHUFFLE so the correct answer is not always option A
+            $correctOption = $options[0];
+            shuffle($options);
+            $correctIdx    = array_search($correctOption, $options);
+            $correctLetter = chr(65 + $correctIdx);
+
             $questions[] = [
-                'question_type' => 'MCQ',
-                'question_text' => "What is the primary function of {$topic}?",
-                'options' => $options,
-                'correct_answer' => 'A',
-                'explanation' => "Option A is correct because {$topic} is a fundamental component in {$unit}. It plays a crucial role in the processes and mechanisms that define this area of study.",
-                'marks' => 1,
-                'topic' => $topic,
-                'unit' => $unit,
+                'question_type'  => 'MCQ',
+                'question_text'  => $questionText,
+                'options'        => array_values($options),
+                'correct_answer' => $correctLetter,
+                'explanation'    => "Option {$correctLetter} is correct: {$correctOption}",
+                'marks'          => 1,
+                'topic'          => $topic,
+                'unit'           => $unit,
             ];
         }
 
         for ($i = 0; $i < $numShort; $i++) {
             $topic = $topics[$i % count($topics)];
+            $stem  = $this->pickUnusedTemplate($shortStems, $usedShortStems);
+            $questionText = str_replace(['{topic}', '{unit}'], [$topic, $unit], $stem);
+
+            [$expectedAnswer, $keyPoints] = $this->buildExpectedAnswer(
+                $topic,
+                $unit,
+                $content,
+                $learningOutcomes,
+                3
+            );
+
             $questions[] = [
-                'question_type' => 'SHORT_ANSWER',
-                'question_text' => "Explain the process of {$topic}.",
-                'expected_answer' => "A comprehensive explanation of {$topic} including its key aspects, relevance to {$unit}, and practical applications.",
-                'key_points' => ["Definition of {$topic}", "Relationship to {$unit}", "Practical application or example"],
-                'marks' => 3,
-                'topic' => $topic,
-                'unit' => $unit,
+                'question_type'   => 'SHORT_ANSWER',
+                'question_text'   => $questionText,
+                'expected_answer' => $expectedAnswer,
+                'key_points'      => $keyPoints,
+                'marks'           => 3,
+                'topic'           => $topic,
+                'unit'            => $unit,
             ];
         }
 
         for ($i = 0; $i < $numDescriptive; $i++) {
             $topic = $topics[$i % count($topics)];
+            $stem  = $this->pickUnusedTemplate($descStems, $usedDescStems);
+            $questionText = str_replace(['{topic}', '{unit}'], [$topic, $unit], $stem);
+
+            [$expectedAnswer, $keyPoints] = $this->buildExpectedAnswer(
+                $topic,
+                $unit,
+                $content,
+                $learningOutcomes,
+                5
+            );
+
+            // Ensure at least 5 key points for descriptive questions
+            $additions = [
+                "Practical applications and real-world examples of {$topic}",
+                "Critical analysis of {$topic} in the context of {$unit}",
+                "Relevance of {$topic} to the Sri Lankan educational context",
+            ];
+            foreach ($additions as $addition) {
+                if (count($keyPoints) >= 5) break;
+                $keyPoints[] = $addition;
+            }
+
             $questions[] = [
-                'question_type' => 'DESCRIPTIVE',
-                'question_text' => "Discuss in detail the scientific principles of {$topic}.",
-                'expected_answer' => "A comprehensive analysis of {$topic} covering theoretical understanding, practical applications, examples from Sri Lankan context, and critical evaluation.",
-                'key_points' => [
-                    "Theoretical foundation of {$topic}",
-                    "Practical applications and examples",
-                    "Analysis and critical thinking",
-                    "Relevance to Sri Lankan context",
-                    "Conclusions and recommendations"
-                ],
-                'marks' => 5,
-                'topic' => $topic,
-                'unit' => $unit,
+                'question_type'   => 'DESCRIPTIVE',
+                'question_text'   => $questionText,
+                'expected_answer' => $expectedAnswer,
+                'key_points'      => $keyPoints,
+                'marks'           => 5,
+                'topic'           => $topic,
+                'unit'            => $unit,
             ];
         }
 
@@ -221,62 +293,167 @@ class HomeworkAIService
     }
 
     /**
-     * Generate realistic MCQ options for fallback
+     * Pick a template that has not been used yet (resets when all are exhausted).
+     */
+    protected function pickUnusedTemplate(array $templates, array &$used): string
+    {
+        $available = array_diff($templates, $used);
+        if (empty($available)) {
+            $used = [];
+            $available = $templates;
+        }
+        $pick = $available[array_rand($available)];
+        $used[] = $pick;
+        return $pick;
+    }
+
+    /**
+     * Extract a content-based correct option from lesson content / learning outcomes.
+     * Returns null if no relevant content is found.
+     */
+    protected function extractContentOption(
+        string $topic,
+        string $content,
+        array $learningOutcomes
+    ): ?string {
+        // 1. Try a relevant learning outcome
+        foreach ($learningOutcomes as $outcome) {
+            if (stripos($outcome, $topic) !== false) {
+                $text = trim($outcome);
+                return strlen($text) > 130 ? substr($text, 0, 127) . '...' : $text;
+            }
+        }
+
+        // 2. Try a relevant sentence from content
+        if ($content) {
+            $sentences = preg_split('/(?<=[.!?])\s+/', $content);
+            foreach ($sentences as $sent) {
+                $sent = trim($sent);
+                if (stripos($sent, $topic) !== false && strlen($sent) >= 20 && strlen($sent) <= 150) {
+                    return $sent;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Build a content-based expected answer and key points list.
+     * Returns [expectedAnswer, keyPoints].
+     */
+    protected function buildExpectedAnswer(
+        string $topic,
+        string $unit,
+        string $content,
+        array $learningOutcomes,
+        int $maxOutcomes
+    ): array {
+        // Split outcomes into relevant vs. other
+        $relevant = [];
+        $other    = [];
+        foreach ($learningOutcomes as $outcome) {
+            if (stripos($outcome, $topic) !== false) {
+                $relevant[] = trim($outcome);
+            } else {
+                $other[] = trim($outcome);
+            }
+        }
+
+        // Use relevant outcomes first, pad with others
+        $selected = array_slice($relevant, 0, $maxOutcomes);
+        if (count($selected) < 2) {
+            $selected = array_merge($selected, array_slice($other, 0, $maxOutcomes - count($selected)));
+        }
+
+        $keyPoints = !empty($selected) ? $selected : [
+            "Definition and meaning of {$topic}",
+            "Relationship between {$topic} and {$unit}",
+            "Practical application of {$topic} in {$unit}",
+        ];
+
+        // Build expected answer from outcomes + relevant content sentences
+        $answerParts = [];
+        if (!empty($selected)) {
+            $answerParts[] = implode(' ', $selected);
+        }
+
+        if ($content) {
+            $sentences = preg_split('/(?<=[.!?])\s+/', $content);
+            foreach ($sentences as $sent) {
+                $sent = trim($sent);
+                if (stripos($sent, $topic) !== false && strlen($sent) >= 20) {
+                    $answerParts[] = $sent;
+                    if (count($answerParts) >= 4) break;
+                }
+            }
+        }
+
+        $expectedAnswer = !empty($answerParts)
+            ? implode(' ', $answerParts)
+            : "{$topic} is an important concept in {$unit}. It involves understanding the key principles and mechanisms related to {$unit} and applying them in practical contexts.";
+
+        return [$expectedAnswer, array_values(array_slice($keyPoints, 0, $maxOutcomes))];
+    }
+
+    /**
+     * Generate realistic MCQ options for fallback.
+     * The first option is always the correct one; callers must shuffle.
      */
     protected function generateMcqOptions(string $topic, string $unit, string $subject): array
     {
         $subjectLower = strtolower($subject);
 
-        // Subject-specific option templates
+        // Subject-specific option templates (include $topic so all options are topic-specific)
         if (
             str_contains($subjectLower, 'science') || str_contains($subjectLower, 'biology') ||
             str_contains($subjectLower, 'chemistry') || str_contains($subjectLower, 'physics')
         ) {
             return [
-                "It is a fundamental component that plays a key role in {$unit}",
-                "It has no significant relationship with {$unit}",
-                "It only occurs in extreme conditions unrelated to {$unit}",
-                "It is a byproduct that doesn't affect {$unit}"
+                "{$topic} is a fundamental component that plays a key role in {$unit}",
+                "{$topic} has no significant relationship with {$unit}",
+                "{$topic} only occurs in extreme conditions unrelated to {$unit}",
+                "{$topic} is a byproduct that does not affect {$unit}",
             ];
         } elseif (str_contains($subjectLower, 'history') || str_contains($subjectLower, 'social')) {
             return [
-                "It significantly influenced the development of {$unit}",
-                "It had minimal impact on {$unit}",
-                "It occurred after the period of {$unit}",
-                "It was unrelated to the events in {$unit}"
+                "{$topic} significantly influenced the development of {$unit}",
+                "{$topic} had minimal impact on {$unit}",
+                "{$topic} occurred after the period of {$unit}",
+                "{$topic} was unrelated to the key events in {$unit}",
             ];
         } elseif (str_contains($subjectLower, 'english') || str_contains($subjectLower, 'language')) {
             return [
-                "It is an essential element used to enhance {$unit}",
-                "It is rarely used in {$unit}",
-                "It contradicts the principles of {$unit}",
-                "It is not applicable to {$unit}"
+                "{$topic} is an essential element that enhances understanding in {$unit}",
+                "{$topic} is rarely applicable in {$unit}",
+                "{$topic} contradicts the stylistic principles of {$unit}",
+                "{$topic} is not applicable to the context of {$unit}",
             ];
         } elseif (
             str_contains($subjectLower, 'math') || str_contains($subjectLower, 'algebra') ||
             str_contains($subjectLower, 'geometry')
         ) {
             return [
-                "It is a mathematical concept that helps solve problems in {$unit}",
-                "It cannot be applied to {$unit}",
-                "It is only theoretical and not used in {$unit}",
-                "It contradicts the principles of {$unit}"
+                "{$topic} is a mathematical concept used to solve problems in {$unit}",
+                "{$topic} cannot be applied to {$unit}",
+                "{$topic} is only theoretical and not used in {$unit}",
+                "{$topic} contradicts the core principles of {$unit}",
             ];
         } elseif (str_contains($subjectLower, 'health') || str_contains($subjectLower, 'medical')) {
             return [
-                "It is important for maintaining proper function in {$unit}",
-                "It has no effect on {$unit}",
-                "It only affects {$unit} in rare cases",
-                "It is harmful to {$unit}"
+                "{$topic} is important for maintaining proper function in {$unit}",
+                "{$topic} has no measurable effect on {$unit}",
+                "{$topic} only affects {$unit} in rare clinical cases",
+                "{$topic} has been shown to be harmful in the context of {$unit}",
             ];
         }
 
         // Default general options
         return [
-            "It is a key concept that is central to understanding {$unit}",
-            "It is not directly related to {$unit}",
-            "It only applies in specific cases outside {$unit}",
-            "It contradicts the main principles of {$unit}"
+            "{$topic} is a key concept that is central to understanding {$unit}",
+            "{$topic} is not directly related to {$unit}",
+            "{$topic} only applies in specific cases outside {$unit}",
+            "{$topic} contradicts the main principles of {$unit}",
         ];
     }
 
@@ -339,7 +516,6 @@ class HomeworkAIService
         $keyPoints = $question['key_points'] ?? [];
 
         // Calculate score based on answer length and keyword presence
-        $answerLength = strlen(trim($answer));
         $wordCount = str_word_count($answer);
 
         // Minimum word requirements

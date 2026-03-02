@@ -1,0 +1,12 @@
+question,type,subject,grade,unit,topic,option_a,option_b,option_c,option_d,answer,marks,difficulty,explanation
+"What is the SI unit of length?",MCQ,science,6,Measurements and Units,Length,Meter,Kilogram,Second,Kelvin,A,1,beginner,"The meter is the standard SI unit for measuring length."
+"Which of the following is an example of a force?",MCQ,science,6,Force and Motion,Types of Forces,Gravity,Temperature,Color,Sound,A,1,beginner,"Gravity is a fundamental force that attracts objects toward each other."
+"Explain the process of photosynthesis.",SHORT_ANSWER,science,6,Plant Kingdom,Photosynthesis,,,,,A,3,beginner,"Photosynthesis is the process by which plants convert light energy into chemical energy."
+"What are the three states of matter?",SHORT_ANSWER,science,6,Matter,States of Matter,,,,,A,3,beginner,"The three states of matter are solid, liquid, and gas."
+"Analyze the importance of ecosystems in maintaining biodiversity.",DESCRIPTIVE,science,6,Living Things and Their Environment,Ecosystems,,,,,A,5,beginner,"Ecosystems play a crucial role in maintaining biodiversity by providing habitats and resources."
+"Who was the first king of ancient Sri Lanka?",MCQ,history,6,Sri Lankan History,Ancient Kingdoms,King Vijaya,King Dutugemunu,King Parakramabahu,King Kasyapa,A,1,beginner,"King Vijaya is traditionally considered the first king of Sri Lanka."
+"What is a synonym for 'happy'?",MCQ,english,6,Vocabulary Building,Synonyms,Joyful,Sad,Angry,Tired,A,1,beginner,"Joyful is a synonym for happy, meaning experiencing joy or pleasure."
+"Identify the verb in this sentence: The cat runs quickly.",SHORT_ANSWER,english,6,Grammar Basics,Parts of Speech,,,,,A,3,beginner,"The verb in the sentence is 'runs' as it describes the action."
+"Why is hand washing important for health?",SHORT_ANSWER,health_science,6,Personal Hygiene,Hand Washing,,,,,A,3,beginner,"Hand washing removes germs and prevents the spread of diseases."
+"What foods are included in a balanced diet?",SHORT_ANSWER,health_science,6,Nutrition,Balanced Diet,,,,,A,3,beginner,"A balanced diet includes fruits, vegetables, proteins, grains, and dairy products."
+
