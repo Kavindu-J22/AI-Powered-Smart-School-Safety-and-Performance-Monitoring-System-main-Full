@@ -1,13 +1,36 @@
 # Audio-Based Threat Detection System Dependencies
-# Core ML Libraries - Using PyTorch for Python 3.14 compatibility
+# ──────────────────────────────────────────────────────────────────────────────
+# SETUP INSTRUCTIONS (fresh computer):
+#   1. Python 3.10 or 3.11 recommended  (3.12+ may have numba/llvmlite issues)
+#   2. Create venv:   python -m venv venv
+#   3. Activate:      venv\Scripts\activate        (Windows)
+#                     source venv/bin/activate      (Linux/Mac)
+#   4. Install deps:  pip install -r requirements.txt
+#   5. Install FFmpeg (external, required by pydub):
+#        Windows: winget install ffmpeg   OR  download from https://ffmpeg.org
+#        Linux:   sudo apt install ffmpeg
+#        Mac:     brew install ffmpeg
+#   6. Run server:    python app.py
+#      → On FIRST RUN the PANNS CNN14 model (~322 MB) downloads automatically
+#        to ~/panns_data/  — internet required for this one-time download.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Core ML / PyTorch  (CPU build — works on any machine without a GPU)
+# For GPU support replace with: pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
 torch>=2.0.0
 torchaudio>=2.0.0
-numpy>=1.24.0
+numpy>=1.24.0,<2.0.0
 scipy>=1.11.0
 
-# Audio Processing (using torchaudio instead of librosa for Python 3.14 compatibility)
-soundfile>=0.12.0
-pydub>=0.25.0
+# PANNS pre-trained audio classifier (PRIMARY non-speech detector)
+# Installs the CNN14 AudioSet wrapper used by pretrained_audio_detector.py
+panns-inference>=0.1.1
+torchlibrosa>=0.1.0
+
+# Audio Processing
+librosa>=0.10.0          # resampling + audio utilities (pulls in numba, soxr, etc.)
+soundfile>=0.12.0        # WAV / FLAC read-write
+pydub>=0.25.0            # audio format conversion (needs FFmpeg installed separately)
 
 # Speech Recognition
 SpeechRecognition>=3.10.0
