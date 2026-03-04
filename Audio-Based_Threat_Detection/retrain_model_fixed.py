@@ -22,60 +22,60 @@ def print_banner():
 
 def main():
     print_banner()
-    
+
     # Initialize
-    print("1️⃣  Initializing...")
+    print("[1/5] Initializing...")
     data_loader = AudioDataLoader()
     trainer = ModelTrainer()
-    
+
     # Load dataset
-    print("\n2️⃣  Loading and preparing dataset...")
+    print("\n[2/5] Loading and preparing dataset...")
     try:
         dataset = data_loader.prepare_dataset(
             test_size=0.2,
             max_samples=None  # Use all samples
         )
     except Exception as e:
-        print(f"❌ Error loading dataset: {e}")
+        print(f"[ERROR] Error loading dataset: {e}")
         print("\nPlease ensure the dataset is in the correct location:")
         print("  Audio-Based_Threat_Detection/Non Speech Dataset/")
         return
-    
+
     X_train = dataset['X_train']
     X_test = dataset['X_test']
     y_train = dataset['y_train']
     y_test = dataset['y_test']
     classes = dataset['classes']
-    
-    print(f"\n✓ Dataset loaded:")
+
+    print(f"\n[OK] Dataset loaded:")
     print(f"  Training samples: {len(X_train)}")
     print(f"  Test samples: {len(X_test)}")
     print(f"  Classes: {classes}")
     print(f"  Feature shape: {X_train.shape}")
-    
+
     # Train model with fixed parameters
-    print("\n3️⃣  Training model with fixes...")
+    print("\n[3/5] Training model with fixes...")
     print("  - Class weighting for imbalanced data")
     print("  - Label smoothing (0.1) to prevent overconfidence")
     print("  - Weight decay (1e-4) for regularization")
-    
+
     history = trainer.train(
         X_train, y_train,
         X_val=X_test, y_val=y_test,
         epochs=ModelConfig.EPOCHS,
         batch_size=ModelConfig.BATCH_SIZE
     )
-    
+
     # Evaluate
-    print("\n4️⃣  Evaluating model...")
+    print("\n[4/5] Evaluating model...")
     results = trainer.evaluate(X_test, y_test, classes)
-    
+
     # Save plots + JSON summary
-    print("\n5️⃣  Generating visualizations and saving results...")
+    print("\n[5/5] Generating visualizations and saving results...")
     trainer.save_results()
-    
+
     print("\n" + "="*70)
-    print("✅ TRAINING COMPLETE!")
+    print("[DONE] TRAINING COMPLETE!")
     print("="*70)
     print(f"\nModel saved to: {trainer.model.model_path}")
     print(f"Test Accuracy: {results['accuracy']*100:.2f}%")
@@ -84,20 +84,20 @@ def main():
         if cls in results['classification_report']:
             metrics = results['classification_report'][cls]
             print(f"  {cls:20s}: Precision={metrics['precision']:.3f}, Recall={metrics['recall']:.3f}, F1={metrics['f1-score']:.3f}")
-    
-    print("\n📊 Visualizations saved to: logs/")
+
+    print("\nVisualizations saved to: logs/")
     print("  - training_history.png")
     print("  - confusion_matrix.png")
     print("  - training_summary.json")
-    
-    print("\n🚀 Next steps:")
+
+    print("\nNext steps:")
     print("  1. Review the confusion matrix to check for class imbalance issues")
     print("  2. If accuracy is still low, consider:")
     print("     - Collecting more training data")
     print("     - Adjusting class thresholds in threat_detector.py")
     print("     - Using data augmentation")
     print("  3. Restart the API server: python app.py")
-    print("\n")
+    print()
 
 if __name__ == '__main__':
     main()

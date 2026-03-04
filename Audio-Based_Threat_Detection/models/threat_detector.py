@@ -17,6 +17,7 @@ from utils.feature_extractor import FeatureExtractor
 from utils.noise_profiler import NoiseProfiler
 from models.non_speech_model import NonSpeechThreatModel
 from models.speech_threat_model import SpeechThreatDetector
+from models.pretrained_audio_detector import PANNsAudioDetector
 
 
 class ThreatDetector:
@@ -32,27 +33,51 @@ class ThreatDetector:
         self.non_speech_model = NonSpeechThreatModel()
         self.speech_detector = SpeechThreatDetector()
 
+        # PANNS CNN14 pre-trained detector (primary non-speech engine)
+        print("[ThreatDetector] Initializing PANNS CNN14 pre-trained detector …")
+        self.panns_detector = PANNsAudioDetector()
+        self.panns_available = self.panns_detector.initialize()
+        if self.panns_available:
+            print("[ThreatDetector] PANNS detector is active (primary).")
+        else:
+            print("[ThreatDetector] PANNS unavailable — falling back to custom model.")
+
         # Base threshold (fallback) and per-class overrides below
         self.non_speech_threshold = 0.70
         self.speech_threshold = ModelConfig.SPEECH_THREAT_THRESHOLD
         self.max_latency = ModelConfig.MAX_LATENCY
 
         # Consecutive detection tracking (reduces false positives)
+        # Set to 1 so that a single confident detection is reported immediately.
+        # Users can increase via set_sensitivity('low') if false-positives are a problem.
         self.detection_history: deque = deque(maxlen=5)
-        self.consecutive_required = 2  # Reduced from 3: 2 consecutive detections required
+        self.consecutive_required = 1  # 1 = report on first detection (most responsive)
 
         # Energy-based filtering
-        self.min_energy_threshold = 0.015  # Detect quieter sounds like crying
-        self.high_energy_threshold = 0.20  # Threshold for screaming/shouting energy check
+        self.min_energy_threshold = 0.010  # Low enough to catch crying/glass_breaking
+        self.high_energy_threshold = 0.18  # Threshold for screaming/shouting energy check
 
-        # Class-specific thresholds tuned for the retrained model
-        # After retraining with Focal Loss + balanced data, model confidence is more accurate
+        # Class-specific confidence thresholds.
+        # PANNS CNN14 (primary) outputs AudioSet probabilities spread across 527
+        # classes, so raw scores for threat events are typically 0.05–0.40.
+        # These thresholds are calibrated to PANNS output scale.
+        # Custom model fallback uses higher scores (0.5–0.9) but we raise its
+        # thresholds dynamically inside analyze_audio when panns_available=False.
         self.class_thresholds = {
-            'crying':        0.55,   # Quieter/softer sound, lower threshold
-            'screaming':     0.72,   # Was 0.96 — retrained model is more calibrated
-            'shouting':      0.72,   # Was 0.97 — retrained model is more calibrated
-            'glass_breaking': 0.55,  # Distinctive transient, easy to detect
-            'normal':        0.0     # Always allow normal
+            'crying':         0.06,   # Soft sounds — very sensitive threshold
+            'screaming':      0.08,   # High-energy but score still modest in AudioSet
+            'shouting':       0.08,   # Same as screaming
+            'glass_breaking': 0.08,   # Distinctive transient
+            'normal':         0.0     # Always allow normal (no threshold)
+        }
+
+        # Custom-model thresholds (used when PANNS is unavailable)
+        self.custom_class_thresholds = {
+            'crying':         0.50,
+            'screaming':      0.60,
+            'shouting':       0.60,
+            'glass_breaking': 0.50,
+            'normal':         0.0
         }
 
         # Load models
@@ -151,33 +176,47 @@ class ThreatDetector:
                 # Apply noise reduction
                 processed_audio = self.noise_profiler.denoise_audio(processed_audio)
 
-            # Extract features (privacy: raw audio can be discarded after this)
-            features = self.feature_extractor.extract_fixed_length_features(processed_audio)
-            features_normalized, _, _ = self.feature_extractor.normalize_features(features)
-
-            # Transpose for model input (batch, time, features)
-            model_input = features_normalized.T
-
-            # Non-speech threat detection
+            # ── Non-speech threat detection ────────────────────────────────
+            # Primary: PANNS CNN14 (pre-trained on AudioSet, no feature extraction needed)
+            # Fallback: custom CNN-BiLSTM model (uses MFCC features)
             if enable_non_speech:
-                class_name, confidence, all_probs = self.non_speech_model.predict(model_input)
+                if self.panns_available:
+                    # PANNS path: feed raw preprocessed audio directly
+                    class_name, confidence, all_probs_dict = self.panns_detector.detect(
+                        processed_audio, AudioConfig.SAMPLE_RATE
+                    )
+                    all_probs_display = {k: round(v, 4) for k, v in all_probs_dict.items()}
+                    detector_used = 'panns_cnn14'
+                else:
+                    # Fallback: extract MFCC features and run custom model
+                    features = self.feature_extractor.extract_fixed_length_features(processed_audio)
+                    features_normalized, _, _ = self.feature_extractor.normalize_features(features)
+                    model_input = features_normalized.T
+                    class_name, confidence, all_probs_list = self.non_speech_model.predict(model_input)
+                    all_probs_display = dict(zip(
+                        self.non_speech_model.classes,
+                        [round(p, 4) for p in all_probs_list]
+                    ))
+                    detector_used = 'custom_cnn_bilstm'
 
-                # Get class-specific threshold
-                class_threshold = self.class_thresholds.get(class_name, self.non_speech_threshold)
+                # Get class-specific threshold.
+                # PANNS output is on AudioSet probability scale (0.05–0.40 typical).
+                # Custom model output is on softmax scale (0.50–0.95 typical).
+                if self.panns_available:
+                    thresholds = self.class_thresholds
+                else:
+                    thresholds = self.custom_class_thresholds
+                class_threshold = thresholds.get(class_name, self.non_speech_threshold)
 
                 # Apply adaptive threshold based on noise profile
                 adaptive_threshold = self.noise_profiler.get_adaptive_threshold(class_threshold)
 
-                # Additional check: for screaming/shouting, require MUCH higher energy
-                if class_name in ['screaming', 'shouting']:
+                # For screaming/shouting on the custom model only: guard against
+                # low-energy false positives.  PANNS already handles this internally
+                # (it evaluates all 527 AudioSet classes and won't fire on silence).
+                if not self.panns_available and class_name in ['screaming', 'shouting']:
                     if audio_energy < self.high_energy_threshold:
-                        # Low energy + screaming/shouting prediction = likely false positive
-                        # Increase threshold significantly to prevent false positives
-                        adaptive_threshold = min(0.99, adaptive_threshold + 0.15)  # Increased from 0.1 to 0.15
-
-                    # Additional spectral check: screaming/shouting has different frequency characteristics
-                    # than normal speech or fan noise
-                    # If energy is borderline, increase threshold even more
+                        adaptive_threshold = min(0.99, adaptive_threshold + 0.15)
                     elif audio_energy < self.high_energy_threshold * 1.3:
                         adaptive_threshold = min(0.98, adaptive_threshold + 0.05)
 
@@ -187,7 +226,7 @@ class ThreatDetector:
                     confidence >= adaptive_threshold
                 )
 
-                # Apply consecutive detection check to reduce false positives
+                # Consecutive detection check to reduce false positives
                 confirmed_threat = self._check_consecutive_detection(class_name, initial_is_threat)
 
                 result['non_speech_result'] = {
@@ -196,12 +235,10 @@ class ThreatDetector:
                     'is_threat': confirmed_threat,
                     'initial_detection': initial_is_threat,
                     'consecutive_confirmed': confirmed_threat,
-                    'all_probabilities': dict(zip(
-                        self.non_speech_model.classes,
-                        [round(p, 4) for p in all_probs]
-                    )),
-                    'threshold_used': adaptive_threshold,
-                    'class_threshold': class_threshold
+                    'all_probabilities': all_probs_display,
+                    'threshold_used': round(adaptive_threshold, 4),
+                    'class_threshold': class_threshold,
+                    'detector': detector_used,
                 }
 
                 if confirmed_threat:
@@ -263,13 +300,25 @@ class ThreatDetector:
                             result['threat_level'] = 'medium'
                         else:
                             result['threat_level'] = 'low'
-                # For non-speech or combined threats, use confidence-based levels
+                # For non-speech or combined threats, use confidence-based levels.
+                # PANNS probabilities are on AudioSet scale (typically 0.05–0.95).
+                # We normalise against each class's own threshold so that "just
+                # detectable" → low, strong detection → high/critical regardless
+                # of the raw scale of the active detector.
                 else:
-                    if result['confidence'] >= 0.8:
+                    ns_conf = result['confidence']
+                    ns_cls  = result['details'].get('non_speech_class', 'normal')
+                    if self.panns_available:
+                        base_thr = self.class_thresholds.get(ns_cls, 0.08)
+                    else:
+                        base_thr = self.custom_class_thresholds.get(ns_cls, 0.50)
+                    # Normalised ratio: 1.0 = just above threshold, higher = stronger
+                    ratio = ns_conf / max(base_thr, 1e-6)
+                    if ratio >= 10.0:
                         result['threat_level'] = 'critical'
-                    elif result['confidence'] >= 0.6:
+                    elif ratio >= 5.0:
                         result['threat_level'] = 'high'
-                    elif result['confidence'] >= 0.4:
+                    elif ratio >= 2.0:
                         result['threat_level'] = 'medium'
                     else:
                         result['threat_level'] = 'low'
@@ -310,41 +359,64 @@ class ThreatDetector:
         Returns:
             Current sensitivity settings
         """
+        # PANNS and custom-model thresholds are on different probability scales.
+        # We maintain separate sets and pick the active one based on panns_available.
         if level == 'low':
-            # Fewer false positives — only very clear/confident threats
-            self.consecutive_required = 3
-            self.class_thresholds = {
-                'crying':        0.70,
-                'screaming':     0.85,
-                'shouting':      0.85,
-                'glass_breaking': 0.68,
-                'normal':        0.0
+            # Fewer false positives — require higher confidence
+            self.consecutive_required = 2
+            self.class_thresholds = {            # PANNS scale
+                'crying':         0.15,
+                'screaming':      0.20,
+                'shouting':       0.20,
+                'glass_breaking': 0.20,
+                'normal':         0.0
             }
-            self.min_energy_threshold = 0.03
-            self.high_energy_threshold = 0.28
+            self.custom_class_thresholds = {     # custom model scale
+                'crying':         0.70,
+                'screaming':      0.80,
+                'shouting':       0.80,
+                'glass_breaking': 0.65,
+                'normal':         0.0
+            }
+            self.min_energy_threshold = 0.025
+            self.high_energy_threshold = 0.25
         elif level == 'high':
-            # More sensitive — catches more threats, may produce more false positives
+            # More sensitive — catch more threats, accept some false positives
             self.consecutive_required = 1
-            self.class_thresholds = {
-                'crying':        0.45,
-                'screaming':     0.55,
-                'shouting':      0.55,
-                'glass_breaking': 0.45,
-                'normal':        0.0
+            self.class_thresholds = {            # PANNS scale
+                'crying':         0.04,
+                'screaming':      0.05,
+                'shouting':       0.05,
+                'glass_breaking': 0.05,
+                'normal':         0.0
+            }
+            self.custom_class_thresholds = {     # custom model scale
+                'crying':         0.40,
+                'screaming':      0.45,
+                'shouting':       0.45,
+                'glass_breaking': 0.40,
+                'normal':         0.0
+            }
+            self.min_energy_threshold = 0.008
+            self.high_energy_threshold = 0.12
+        else:  # normal — balanced (default)
+            self.consecutive_required = 1
+            self.class_thresholds = {            # PANNS scale
+                'crying':         0.06,
+                'screaming':      0.08,
+                'shouting':       0.08,
+                'glass_breaking': 0.08,
+                'normal':         0.0
+            }
+            self.custom_class_thresholds = {     # custom model scale
+                'crying':         0.50,
+                'screaming':      0.60,
+                'shouting':       0.60,
+                'glass_breaking': 0.50,
+                'normal':         0.0
             }
             self.min_energy_threshold = 0.010
-            self.high_energy_threshold = 0.15
-        else:  # normal — balanced (default)
-            self.consecutive_required = 2
-            self.class_thresholds = {
-                'crying':        0.55,
-                'screaming':     0.72,
-                'shouting':      0.72,
-                'glass_breaking': 0.55,
-                'normal':        0.0
-            }
-            self.min_energy_threshold = 0.015
-            self.high_energy_threshold = 0.20
+            self.high_energy_threshold = 0.18
 
         return self.get_sensitivity_settings()
 
@@ -361,10 +433,13 @@ class ThreatDetector:
         """Get detector status"""
         return {
             'non_speech_model_loaded': self.non_speech_model.model is not None,
+            'panns_available': self.panns_available,
+            'active_detector': 'panns_cnn14' if self.panns_available else 'custom_cnn_bilstm',
             'noise_profiler': self.noise_profiler.get_status(),
             'thresholds': {
                 'non_speech': self.non_speech_threshold,
-                'speech': self.speech_threshold
+                'speech': self.speech_threshold,
+                'class_thresholds': self.class_thresholds,
             },
             'sensitivity': self.get_sensitivity_settings(),
             'max_latency': self.max_latency

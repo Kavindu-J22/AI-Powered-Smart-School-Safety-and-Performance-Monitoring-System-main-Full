@@ -45,17 +45,27 @@ class AudioDataLoader:
         self.label_encoder = LabelEncoder()
         self.sr = AudioConfig.SAMPLE_RATE
 
-        # Mapping of folder names to class labels
+        # Mapping of folder names to class labels.
+        # On Windows the filesystem is case-insensitive, so only one variant of
+        # each folder name should be listed here to avoid double-counting files.
+        # The actual dataset folder names are:
+        #   crying / glass_breaking / Normal / screaming / shouting
         self.folder_to_class = {
-            'crying':        'crying',
-            'crying-mp3':    'crying',
-            'crying-wav':    'crying',
-            'screaming':     'screaming',
-            'Screaming-mp3': 'screaming',
-            'screaming- wav':'screaming',
-            'shouting':      'shouting',
-            'glass breaking':'glass_breaking',
-            'non_scream':    'normal'
+            # Primary folder names (match the actual dataset)
+            'crying':           'crying',
+            'screaming':        'screaming',
+            'shouting':         'shouting',
+            'glass_breaking':   'glass_breaking',
+            'Normal':           'normal',
+            # Legacy / alternative names (kept for backward-compat — skipped if absent)
+            'crying-mp3':       'crying',
+            'crying-wav':       'crying',
+            'Screaming-mp3':    'screaming',
+            'screaming-wav':    'screaming',
+            'glass breaking':   'glass_breaking',
+            'non_scream':       'normal',
+            'normal':           'normal',
+            'background':       'normal',
         }
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -122,16 +132,38 @@ class AudioDataLoader:
     # ─────────────────────────────────────────────────────────────────────────
 
     def get_audio_files(self) -> List[Tuple[str, str]]:
-        """Get all audio files with their class labels."""
+        """Get all audio files with their class labels.
+
+        Deduplicates by resolved absolute path so that case-insensitive
+        filesystems (Windows) don't count the same file twice when multiple
+        folder-name variants in folder_to_class resolve to the same directory.
+        """
         audio_files = []
+        seen_file_paths: set = set()
+        seen_folder_paths: set = set()
+
         for folder_name, class_label in self.folder_to_class.items():
             folder_path = self.dataset_path / folder_name
             if not folder_path.exists():
-                print(f"  Warning: folder not found — {folder_path}")
+                continue  # silently skip missing/legacy folder variants
+
+            # Resolve to absolute path for deduplication (handles case-insensitivity)
+            resolved = folder_path.resolve()
+            if resolved in seen_folder_paths:
                 continue
+            seen_folder_paths.add(resolved)
+
+            found = 0
             for ext in ['*.wav', '*.mp3', '*.ogg', '*.flac']:
                 for fp in folder_path.glob(ext):
-                    audio_files.append((str(fp), class_label))
+                    fp_resolved = str(fp.resolve())
+                    if fp_resolved not in seen_file_paths:
+                        seen_file_paths.add(fp_resolved)
+                        audio_files.append((str(fp), class_label))
+                        found += 1
+            if found:
+                print(f"  Found folder '{folder_name}' → class '{class_label}' ({found} files)")
+
         return audio_files
 
     def _load_audio_file(self, file_path: str) -> Optional[np.ndarray]:

@@ -26,7 +26,7 @@ class AudioThreatController extends Controller
     public function dashboard(): View
     {
         $stats = $this->getDetectorStatus();
-        
+
         return view($this->viewDirectory . 'dashboard', [
             'stats' => $stats,
             'apiUrl' => $this->apiBaseUrl
@@ -41,11 +41,11 @@ class AudioThreatController extends Controller
         try {
             $response = Http::timeout($this->timeout)
                 ->get("{$this->apiBaseUrl}/api/audio/status");
-            
+
             if ($response->successful()) {
                 return response()->json($response->json());
             }
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to get detector status'
@@ -72,12 +72,15 @@ class AudioThreatController extends Controller
         try {
             $response = Http::timeout($this->timeout)
                 ->post("{$this->apiBaseUrl}/api/audio/analyze", [
-                    'audio_data' => $request->audio_data
+                    'audio_data'  => $request->audio_data,
+                    'format'      => $request->input('format', 'auto'),
+                    'sample_rate' => $request->input('sample_rate', 16000),
+                    'session_id'  => $request->input('session_id'),
                 ]);
-            
+
             if ($response->successful()) {
                 $result = $response->json();
-                
+
                 // Log threat detections
                 if ($result['success'] && $result['result']['is_threat'] ?? false) {
                     Log::warning('Audio threat detected', [
@@ -87,10 +90,10 @@ class AudioThreatController extends Controller
                         'timestamp' => now()->toIso8601String()
                     ]);
                 }
-                
+
                 return response()->json($result);
             }
-            
+
             return response()->json([
                 'success' => false,
                 'error' => 'Analysis failed'
@@ -118,11 +121,11 @@ class AudioThreatController extends Controller
                 ->post("{$this->apiBaseUrl}/api/audio/calibrate", [
                     'audio_data' => $request->audio_data
                 ]);
-            
+
             if ($response->successful()) {
                 return response()->json($response->json());
             }
-            
+
             return response()->json([
                 'success' => false,
                 'error' => 'Calibration failed'
@@ -145,7 +148,7 @@ class AudioThreatController extends Controller
                 ->post("{$this->apiBaseUrl}/api/detection/start", [
                     'session_id' => $request->session_id ?? uniqid('session_')
                 ]);
-            
+
             return response()->json($response->json());
         } catch (\Exception $e) {
             return response()->json([
@@ -165,7 +168,7 @@ class AudioThreatController extends Controller
                 ->post("{$this->apiBaseUrl}/api/detection/stop", [
                     'session_id' => $request->session_id
                 ]);
-            
+
             return response()->json($response->json());
         } catch (\Exception $e) {
             return response()->json([
@@ -183,18 +186,17 @@ class AudioThreatController extends Controller
         try {
             $response = Http::timeout(5)
                 ->get("{$this->apiBaseUrl}/api/audio/status");
-            
+
             if ($response->successful()) {
                 return $response->json()['detector'] ?? [];
             }
         } catch (\Exception $e) {
             Log::debug('Could not fetch detector status: ' . $e->getMessage());
         }
-        
+
         return [
             'non_speech_model_loaded' => false,
             'noise_profiler' => ['is_calibrated' => false]
         ];
     }
 }
-
