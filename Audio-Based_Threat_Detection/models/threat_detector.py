@@ -280,48 +280,56 @@ class ThreatDetector:
                     result['details']['detected_text'] = speech_result.get('text', '')
                     result['details']['detected_keywords'] = speech_result.get('threat_analysis', {}).get('detected_keywords', [])
             
-            # Determine overall threat level
+            # Determine overall threat level.
+            # For 'combined' threats both speech and non-speech fired — take the
+            # HIGHEST level from either source so a "High" speech threat is never
+            # silently downgraded to "Medium" by a lower-scoring PANNS result.
             if result['is_threat']:
-                # For speech-only threats, use the speech detector's threat level directly
-                if result['threat_type'] == 'speech' and 'speech_result' in result:
+                LEVEL_ORDER = {'none': 0, 'low': 1, 'medium': 2, 'high': 3, 'critical': 4}
+                computed_level = 'low'  # floor for any confirmed threat
+
+                # ── Speech threat level ───────────────────────────────────────
+                if result['threat_type'] in ('speech', 'combined') and result.get('speech_result'):
                     speech_threat_level = result['speech_result'].get('threat_level', 'none')
-                    # Map speech threat levels to overall threat levels
-                    if speech_threat_level == 'high':
-                        result['threat_level'] = 'high'
-                    elif speech_threat_level == 'medium':
-                        result['threat_level'] = 'medium'
-                    elif speech_threat_level == 'low':
-                        result['threat_level'] = 'low'
+                    if speech_threat_level in LEVEL_ORDER and speech_threat_level != 'none':
+                        speech_lvl = speech_threat_level
                     else:
-                        # Fallback to confidence-based if speech level is 'none'
-                        if result['confidence'] >= 0.6:
-                            result['threat_level'] = 'high'
-                        elif result['confidence'] >= 0.4:
-                            result['threat_level'] = 'medium'
+                        # Fallback: derive level from threat_score when speech
+                        # detector didn't set a level (edge case)
+                        s_score = result['speech_result'].get('threat_score', 0.0)
+                        if s_score >= 0.6:
+                            speech_lvl = 'high'
+                        elif s_score >= 0.4:
+                            speech_lvl = 'medium'
                         else:
-                            result['threat_level'] = 'low'
-                # For non-speech or combined threats, use confidence-based levels.
+                            speech_lvl = 'low'
+                    if LEVEL_ORDER[speech_lvl] > LEVEL_ORDER[computed_level]:
+                        computed_level = speech_lvl
+
+                # ── Non-speech threat level ───────────────────────────────────
                 # PANNS probabilities are on AudioSet scale (typically 0.05–0.95).
-                # We normalise against each class's own threshold so that "just
-                # detectable" → low, strong detection → high/critical regardless
-                # of the raw scale of the active detector.
-                else:
-                    ns_conf = result['confidence']
+                # Normalise against each class's threshold so that "just detectable"
+                # → low and a strong detection → high/critical regardless of scale.
+                if result['threat_type'] in ('non_speech', 'combined') and result.get('non_speech_result'):
+                    ns_conf = result['non_speech_result']['confidence']
                     ns_cls  = result['details'].get('non_speech_class', 'normal')
                     if self.panns_available:
                         base_thr = self.class_thresholds.get(ns_cls, 0.08)
                     else:
                         base_thr = self.custom_class_thresholds.get(ns_cls, 0.50)
-                    # Normalised ratio: 1.0 = just above threshold, higher = stronger
                     ratio = ns_conf / max(base_thr, 1e-6)
                     if ratio >= 10.0:
-                        result['threat_level'] = 'critical'
+                        ns_lvl = 'critical'
                     elif ratio >= 5.0:
-                        result['threat_level'] = 'high'
+                        ns_lvl = 'high'
                     elif ratio >= 2.0:
-                        result['threat_level'] = 'medium'
+                        ns_lvl = 'medium'
                     else:
-                        result['threat_level'] = 'low'
+                        ns_lvl = 'low'
+                    if LEVEL_ORDER[ns_lvl] > LEVEL_ORDER[computed_level]:
+                        computed_level = ns_lvl
+
+                result['threat_level'] = computed_level
         
         except Exception as e:
             result['details']['error'] = str(e)
