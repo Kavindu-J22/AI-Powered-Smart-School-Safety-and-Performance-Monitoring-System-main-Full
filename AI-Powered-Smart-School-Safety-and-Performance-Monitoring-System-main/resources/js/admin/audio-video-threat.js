@@ -80,9 +80,12 @@ class AudioVideoThreatDetector {
         this.fpsCounter  = document.getElementById('fpsCounter');
         this.latencyEl   = document.getElementById('latencyCounter');
 
-        this.alertsContainer = document.getElementById('alertsContainer');
-        this.noAlertsMsg     = document.getElementById('noAlertsMsg');
-        this.historyBody     = document.getElementById('historyTableBody');
+        this.alertsContainer      = document.getElementById('alertsContainer');
+        this.noAlertsMsg          = document.getElementById('noAlertsMsg');
+        this.historyBody          = document.getElementById('historyTableBody');
+        this.videoThreatsContainer = document.getElementById('videoThreatsContainer');
+        this.noVideoThreatsMsg    = document.getElementById('noVideoThreatsMsg');
+        this.videoThreatBadge     = document.getElementById('videoThreatBadge');
 
         this.criticalBanner  = document.getElementById('criticalAlertBanner');
         this.criticalMsg     = document.getElementById('criticalAlertMsg');
@@ -551,11 +554,72 @@ class AudioVideoThreatDetector {
     _onVideoThreat(threats) {
         this.lastVideoThreat = { data: threats, time: Date.now() };
         this.videoThreatCount && (this.videoThreatCount.textContent = this.videoStats.threats);
+
+        // Human-readable label (e.g. "Weapon Detected" → "Weapon Detected")
+        const label = threats.threat_type
+            ? threats.threat_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+            : 'Unknown';
+
         this.lastVideoEl && (this.lastVideoEl.innerHTML =
-            `<span class="text-danger text-sm">Last: ${threats.threat_type || 'Unknown'}</span>`);
-        this._addAlert(`Video Threat: ${threats.threat_type || 'Unknown'} (${Math.round((threats.confidence||0)*100)}%)`, 'video-threat', 'Video');
-        this._addHistory('Video', threats.threat_type || 'Unknown', threats.threat_level || 'High');
+            `<span class="text-danger text-sm">Last: ${label}</span>`);
+
+        // Real-time alerts feed
+        this._addAlert(
+            `Video Threat: ${label} (${Math.round((threats.confidence||0)*100)}%)`,
+            'video-threat', 'Video'
+        );
+
+        // Detection history
+        this._addHistory('Video', label, threats.threat_level || 'High');
+
+        // Dedicated video threats panel
+        this._addVideoThreatItem(threats, label);
+
         this._checkCombinedThreat();
+    }
+
+    /**
+     * Render a detected video threat card inside #videoThreatsContainer.
+     */
+    _addVideoThreatItem(threats, label) {
+        if (!this.videoThreatsContainer) return;
+
+        // Hide empty-state message
+        if (this.noVideoThreatsMsg) this.noVideoThreatsMsg.style.display = 'none';
+
+        // Update badge count
+        if (this.videoThreatBadge) {
+            this.videoThreatBadge.style.display = '';
+            this.videoThreatBadge.textContent = this.videoStats.threats;
+        }
+
+        const time = new Date().toLocaleTimeString();
+        const conf = Math.round((threats.confidence || 0) * 100);
+        const level = (threats.threat_level || 'High');
+        const levelCls = {
+            Critical: 'danger',
+            High:     'danger',
+            Medium:   'warning',
+            Low:      'secondary'
+        }[level] || 'danger';
+
+        const el = document.createElement('div');
+        el.className = 'alert alert-danger mb-2 py-2';
+        el.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="material-symbols-rounded text-danger" style="font-size:16px;">dangerous</i>
+                        <strong>⚠ ${label}</strong>
+                        <span class="badge bg-${levelCls}">${level}</span>
+                    </div>
+                    <div class="text-sm text-muted">Confidence: ${conf}%</div>
+                </div>
+                <small class="text-muted">${time}</small>
+            </div>`;
+
+        // Newest threats at top
+        this.videoThreatsContainer.insertBefore(el, this.videoThreatsContainer.firstChild);
     }
 
     _drawDetections(data) {

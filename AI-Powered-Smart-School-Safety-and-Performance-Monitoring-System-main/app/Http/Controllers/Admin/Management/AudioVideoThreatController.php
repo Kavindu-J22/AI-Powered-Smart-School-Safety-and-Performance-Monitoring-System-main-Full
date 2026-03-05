@@ -213,11 +213,33 @@ class AudioVideoThreatController extends Controller
             $videoThreat = $request->input('video_threat', []);
             $timestamp   = now()->format('Y-m-d H:i:s');
 
-            $audioType  = $audioThreat['threat_type']  ?? 'Unknown';
+            // Resolve human-readable audio type:
+            // For non_speech threats the actual class is nested inside non_speech_result.detected_class
+            $rawAudioType = $audioThreat['threat_type'] ?? 'Unknown';
+            if ($rawAudioType === 'non_speech' && !empty($audioThreat['non_speech_result']['detected_class'])) {
+                $audioType = ucwords(str_replace('_', ' ', $audioThreat['non_speech_result']['detected_class']));
+            } elseif ($rawAudioType === 'speech' && !empty($audioThreat['speech_result']['detected_keywords'])) {
+                $keywords  = collect($audioThreat['speech_result']['detected_keywords'])
+                    ->map(fn($k) => is_array($k) ? ($k['keyword'] ?? '') : $k)
+                    ->filter()->implode(', ');
+                $audioType = $keywords ? "Speech ({$keywords})" : 'Speech Threat';
+            } elseif ($rawAudioType === 'combined') {
+                $nsClass  = $audioThreat['non_speech_result']['detected_class'] ?? '';
+                $audioType = $nsClass ? ucwords(str_replace('_', ' ', $nsClass)) . ' + Speech' : 'Combined Threat';
+            } else {
+                $audioType = ucwords(str_replace('_', ' ', $rawAudioType));
+            }
+
             $audioLevel = $audioThreat['threat_level'] ?? 'High';
             $audioConf  = round(($audioThreat['confidence'] ?? 0) * 100, 1);
-            $videoType  = $videoThreat['threat_type']  ?? 'Unknown';
-            $videoConf  = round(($videoThreat['confidence'] ?? 0) * 100, 1);
+
+            // Resolve human-readable video type
+            $rawVideoType = $videoThreat['threat_type'] ?? 'Unknown';
+            $videoType    = ucwords(str_replace('_', ' ', $rawVideoType));
+            $videoConf    = round(($videoThreat['confidence'] ?? 0) * 100, 1);
+
+            // Speech transcript (if available)
+            $speechText = $audioThreat['speech_result']['text'] ?? null;
 
             $subject = 'CRITICAL COMBINED THREAT ALERT - School Safety System';
 
@@ -227,8 +249,11 @@ class AudioVideoThreatController extends Controller
             $body .= "AUDIO THREAT\n";
             $body .= "  Type       : {$audioType}\n";
             $body .= "  Level      : {$audioLevel}\n";
-            $body .= "  Confidence : {$audioConf}%\n\n";
-            $body .= "VIDEO THREAT\n";
+            $body .= "  Confidence : {$audioConf}%\n";
+            if ($speechText) {
+                $body .= "  Transcript : \"{$speechText}\"\n";
+            }
+            $body .= "\nVIDEO THREAT\n";
             $body .= "  Type       : {$videoType}\n";
             $body .= "  Confidence : {$videoConf}%\n\n";
             $body .= "ACTION REQUIRED: Simultaneous audio and video threats indicate a high-risk\n";
@@ -246,10 +271,11 @@ class AudioVideoThreatController extends Controller
             });
 
             Log::critical('AudioVideo: COMBINED CRITICAL ALERT sent', [
-                'audio_threat' => $audioType,
-                'video_threat' => $videoType,
-                'email'        => $this->alertEmail,
-                'timestamp'    => $timestamp,
+                'audio_threat'     => $audioType,
+                'audio_raw_type'   => $rawAudioType,
+                'video_threat'     => $videoType,
+                'email'            => $this->alertEmail,
+                'timestamp'        => $timestamp,
             ]);
 
             return response()->json(['success' => true, 'message' => 'Critical alert sent']);

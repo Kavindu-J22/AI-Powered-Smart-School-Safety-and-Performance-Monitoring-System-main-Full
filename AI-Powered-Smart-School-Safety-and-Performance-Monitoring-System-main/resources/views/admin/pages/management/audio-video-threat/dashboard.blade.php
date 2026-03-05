@@ -223,10 +223,25 @@
                         {{-- Object Detection Results --}}
                         <div class="mt-3">
                             <h6 class="text-xs text-uppercase text-secondary mb-2">Detected Objects</h6>
-                            <div id="resultsContainer" style="max-height:220px; overflow-y:auto;">
+                            <div id="resultsContainer" style="max-height:180px; overflow-y:auto;">
                                 <div class="text-center text-secondary py-3" id="noResultsMsg">
                                     <i class="material-symbols-rounded" style="font-size:36px;">search</i>
                                     <p class="mt-1 text-sm">No objects detected yet.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Video Threats Panel --}}
+                        <div class="mt-3">
+                            <h6 class="text-xs text-uppercase text-secondary mb-2 d-flex align-items-center gap-2">
+                                <i class="material-symbols-rounded text-danger" style="font-size:16px;">dangerous</i>
+                                Video Threats
+                                <span class="badge bg-danger rounded-pill" id="videoThreatBadge" style="display:none;">0</span>
+                            </h6>
+                            <div id="videoThreatsContainer" style="max-height:180px; overflow-y:auto;">
+                                <div class="text-center text-secondary py-2" id="noVideoThreatsMsg">
+                                    <i class="material-symbols-rounded" style="font-size:28px;">verified_user</i>
+                                    <p class="mt-1 text-sm">No video threats detected.</p>
                                 </div>
                             </div>
                         </div>
