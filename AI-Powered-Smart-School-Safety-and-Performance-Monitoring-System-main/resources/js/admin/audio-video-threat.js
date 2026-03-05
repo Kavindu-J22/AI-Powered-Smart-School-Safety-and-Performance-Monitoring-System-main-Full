@@ -255,11 +255,52 @@ class AudioVideoThreatDetector {
     _onAudioThreat(result) {
         this.lastAudioThreat = { data: result, time: Date.now() };
         this.audioThreatCount && (this.audioThreatCount.textContent = this.audioStats.threats);
+
+        // Resolve human-readable label from the sub-result, not just threat_type
+        const label = this._audioThreatLabel(result);
+
         this.lastAudioEl && (this.lastAudioEl.innerHTML =
-            `<span class="text-warning text-sm">Last: ${result.threat_type || 'Unknown'}</span>`);
-        this._addAlert(`Audio Threat: ${result.threat_type || 'Unknown'} (${Math.round((result.confidence||0)*100)}%)`, 'audio-threat', 'Audio');
-        this._addHistory('Audio', result.threat_type || 'Unknown', result.threat_level || 'High');
+            `<span class="text-warning text-sm">Last: ${label}</span>`);
+
+        // Build detail line for the alert feed
+        let detail = '';
+        if (result.threat_type === 'non_speech' && result.non_speech_result?.detected_class) {
+            detail = ` — Detected: ${result.non_speech_result.detected_class.replace(/_/g, ' ')}`;
+        } else if (result.threat_type === 'speech' && result.speech_result?.text) {
+            detail = ` — "${result.speech_result.text}"`;
+        }
+
+        this._addAlert(
+            `Audio Threat: ${label} (${Math.round((result.confidence||0)*100)}%)${detail}`,
+            'audio-threat', 'Audio'
+        );
+        this._addHistory('Audio', label, result.threat_level || 'High');
         this._checkCombinedThreat();
+    }
+
+    /**
+     * Build a human-readable label for an audio threat result.
+     * For non-speech: returns the detected class (e.g. "Screaming", "Glass Breaking").
+     * For speech:     returns "Speech Threat" with keywords if present.
+     * For combined:   returns both.
+     */
+    _audioThreatLabel(result) {
+        const type = result.threat_type || '';
+        if (type === 'non_speech') {
+            const cls = result.non_speech_result?.detected_class || 'Non-Speech';
+            return cls.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        }
+        if (type === 'speech') {
+            const kw = result.speech_result?.detected_keywords?.map(k => k.keyword || k).join(', ');
+            return kw ? `Speech (${kw})` : 'Speech Threat';
+        }
+        if (type === 'combined') {
+            const ns  = result.non_speech_result?.detected_class || '';
+            const kw  = result.speech_result?.detected_keywords?.map(k => k.keyword || k).join(', ') || '';
+            const parts = [ns && ns.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), kw && `Speech(${kw})`].filter(Boolean);
+            return parts.length ? parts.join(' + ') : 'Combined Threat';
+        }
+        return type ? type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Unknown';
     }
 
     _renderAudioResults(result) {
@@ -619,11 +660,17 @@ class AudioVideoThreatDetector {
         const audioData = this.lastAudioThreat.data;
         const videoData = this.lastVideoThreat.data;
 
+        // Use human-readable labels (e.g. "Screaming" instead of "non_speech")
+        const audioLabel = this._audioThreatLabel(audioData);
+        const videoLabel = videoData.threat_type
+            ? videoData.threat_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+            : 'Unknown';
+
         // Show banner
         if (this.criticalBanner) {
             this.criticalBanner.classList.remove('d-none');
             this.criticalMsg && (this.criticalMsg.textContent =
-                `Audio: ${audioData.threat_type || 'Unknown'} + Video: ${videoData.threat_type || 'Unknown'} — Email alert sent!`);
+                `Audio: ${audioLabel} + Video: ${videoLabel} — Email alert sent!`);
         }
 
         // Populate modal fields
@@ -631,9 +678,9 @@ class AudioVideoThreatDetector {
         const modalAudioConf = document.getElementById('modalAudioConf');
         const modalVideoType = document.getElementById('modalVideoType');
         const modalVideoConf = document.getElementById('modalVideoConf');
-        if (modalAudioType) modalAudioType.textContent = audioData.threat_type || 'Unknown';
+        if (modalAudioType) modalAudioType.textContent = audioLabel;
         if (modalAudioConf) modalAudioConf.textContent = `Confidence: ${Math.round((audioData.confidence||0)*100)}%`;
-        if (modalVideoType) modalVideoType.textContent = videoData.threat_type || 'Unknown';
+        if (modalVideoType) modalVideoType.textContent = videoLabel;
         if (modalVideoConf) modalVideoConf.textContent = `Confidence: ${Math.round((videoData.confidence||0)*100)}%`;
 
         // Show modal
@@ -645,10 +692,10 @@ class AudioVideoThreatDetector {
 
         // Add to alerts feed
         this._addAlert(
-            `⚠ CRITICAL: Simultaneous Audio (${audioData.threat_type || '?'}) + Video (${videoData.threat_type || '?'}) threat!`,
+            `⚠ CRITICAL: Simultaneous Audio (${audioLabel}) + Video (${videoLabel}) threat!`,
             'combined-threat', 'CRITICAL'
         );
-        this._addHistory('CRITICAL', `Audio+Video Combined`, 'Critical');
+        this._addHistory('CRITICAL', `${audioLabel} + ${videoLabel}`, 'Critical');
 
         // Send email via Laravel
         try {
