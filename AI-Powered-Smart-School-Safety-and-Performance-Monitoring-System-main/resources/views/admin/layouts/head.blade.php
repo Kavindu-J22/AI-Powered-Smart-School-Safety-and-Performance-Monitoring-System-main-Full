@@ -33,47 +33,208 @@
 
     <!-- Dynamic Theme Colors -->
     @php
-        $settings = \App\Models\Setting::first() ?? new \App\Models\Setting();
-        $themeColors = $settings->theme_colors ?? [];
+    $settings = \App\Models\Setting::first() ?? new \App\Models\Setting();
+    $themeColors = $settings->theme_colors ?? [];
     @endphp
     <style>
         :root {
-            --primary-green: {{ $themeColors['--primary-color'] ?? '#06C167' }};
-            --light-green: {{ $themeColors['--secondary-color'] ?? '#10B981' }};
-            --dark-green: {{ $themeColors['--secondary-color'] ?? '#10B981' }};
-            --accent-green: {{ $themeColors['--accent-color'] ?? '#F0FDF4' }};
+            --primary-green: {
+                    {
+                    $themeColors['--primary-color'] ?? '#06C167'
+                }
+            }
+
+            ;
+
+            --light-green: {
+                    {
+                    $themeColors['--secondary-color'] ?? '#10B981'
+                }
+            }
+
+            ;
+
+            --dark-green: {
+                    {
+                    $themeColors['--secondary-color'] ?? '#10B981'
+                }
+            }
+
+            ;
+
+            --accent-green: {
+                    {
+                    $themeColors['--accent-color'] ?? '#F0FDF4'
+                }
+            }
+
+            ;
             --soft-green: #DCFCE7;
-            --success-green: {{ $themeColors['--success-color'] ?? '#10B981' }};
-            --info-blue: {{ $themeColors['--info-color'] ?? '#3B82F6' }};
-            --warning-orange: {{ $themeColors['--warning-color'] ?? '#F59E0B' }};
-            --danger-red: {{ $themeColors['--danger-color'] ?? '#EF4444' }};
+
+            --success-green: {
+                    {
+                    $themeColors['--success-color'] ?? '#10B981'
+                }
+            }
+
+            ;
+
+            --info-blue: {
+                    {
+                    $themeColors['--info-color'] ?? '#3B82F6'
+                }
+            }
+
+            ;
+
+            --warning-orange: {
+                    {
+                    $themeColors['--warning-color'] ?? '#F59E0B'
+                }
+            }
+
+            ;
+
+            --danger-red: {
+                    {
+                    $themeColors['--danger-color'] ?? '#EF4444'
+                }
+            }
+
+            ;
             --light-gray: #F9FAFB;
             --medium-gray: #F3F4F6;
             --dark-gray: #6B7280;
             --text-dark: #374151;
             --white: #FFFFFF;
-            --shadow-soft: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-            --shadow-medium: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-large: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-soft: 0 1px 3px 0 rgba(0, 0, 0, 0.1),
+            0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-medium: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+            0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-large: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+            0 4px 6px -2px rgba(0, 0, 0, 0.05);
 
             /* Apply theme colors to Bootstrap variables */
-            --bs-primary: {{ $themeColors['--primary-color'] ?? '#06C167' }};
-            --bs-primary-rgb: {{ hexToRgb($themeColors['--primary-color'] ?? '#06C167') }};
-            --bs-secondary: {{ $themeColors['--secondary-color'] ?? '#10B981' }};
-            --bs-secondary-rgb: {{ hexToRgb($themeColors['--secondary-color'] ?? '#10B981') }};
-            --bs-success: {{ $themeColors['--success-color'] ?? '#10B981' }};
-            --bs-success-rgb: {{ hexToRgb($themeColors['--success-color'] ?? '#10B981') }};
-            --bs-info: {{ $themeColors['--info-color'] ?? '#3B82F6' }};
-            --bs-info-rgb: {{ hexToRgb($themeColors['--info-color'] ?? '#3B82F6') }};
-            --bs-warning: {{ $themeColors['--warning-color'] ?? '#F59E0B' }};
-            --bs-warning-rgb: {{ hexToRgb($themeColors['--warning-color'] ?? '#F59E0B') }};
-            --bs-danger: {{ $themeColors['--danger-color'] ?? '#EF4444' }};
-            --bs-danger-rgb: {{ hexToRgb($themeColors['--danger-color'] ?? '#EF4444') }};
+            --bs-primary: {
+                    {
+                    $themeColors['--primary-color'] ?? '#06C167'
+                }
+            }
+
+            ;
+
+            --bs-primary-rgb: {
+                    {
+                    hexToRgb($themeColors['--primary-color'] ?? '#06C167')
+                }
+            }
+
+            ;
+
+            --bs-secondary: {
+                    {
+                    $themeColors['--secondary-color'] ?? '#10B981'
+                }
+            }
+
+            ;
+
+            --bs-secondary-rgb: {
+                    {
+                    hexToRgb($themeColors['--secondary-color'] ?? '#10B981')
+                }
+            }
+
+            ;
+
+            --bs-success: {
+                    {
+                    $themeColors['--success-color'] ?? '#10B981'
+                }
+            }
+
+            ;
+
+            --bs-success-rgb: {
+                    {
+                    hexToRgb($themeColors['--success-color'] ?? '#10B981')
+                }
+            }
+
+            ;
+
+            --bs-info: {
+                    {
+                    $themeColors['--info-color'] ?? '#3B82F6'
+                }
+            }
+
+            ;
+
+            --bs-info-rgb: {
+                    {
+                    hexToRgb($themeColors['--info-color'] ?? '#3B82F6')
+                }
+            }
+
+            ;
+
+            --bs-warning: {
+                    {
+                    $themeColors['--warning-color'] ?? '#F59E0B'
+                }
+            }
+
+            ;
+
+            --bs-warning-rgb: {
+                    {
+                    hexToRgb($themeColors['--warning-color'] ?? '#F59E0B')
+                }
+            }
+
+            ;
+
+            --bs-danger: {
+                    {
+                    $themeColors['--danger-color'] ?? '#EF4444'
+                }
+            }
+
+            ;
+
+            --bs-danger-rgb: {
+                    {
+                    hexToRgb($themeColors['--danger-color'] ?? '#EF4444')
+                }
+            }
+
+            ;
 
             /* RGB values for transparency effects */
-            --primary-rgb: {{ hexToRgb($themeColors['--primary-color'] ?? '#06C167') }};
-            --secondary-rgb: {{ hexToRgb($themeColors['--secondary-color'] ?? '#10B981') }};
-            --accent-rgb: {{ hexToRgb($themeColors['--accent-color'] ?? '#F0FDF4') }};
+            --primary-rgb: {
+                    {
+                    hexToRgb($themeColors['--primary-color'] ?? '#06C167')
+                }
+            }
+
+            ;
+
+            --secondary-rgb: {
+                    {
+                    hexToRgb($themeColors['--secondary-color'] ?? '#10B981')
+                }
+            }
+
+            ;
+
+            --accent-rgb: {
+                    {
+                    hexToRgb($themeColors['--accent-color'] ?? '#F0FDF4')
+                }
+            }
+
+            ;
         }
 
         /* Primary theme elements */
@@ -230,16 +391,17 @@
         }
 
         /* School customization - hide animations if disabled */
-        @if (!($settings->enable_animations ?? true))
-            *,
-            *::before,
-            *::after {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
+        @if ( !($settings->enable_animations ?? true)) *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+
         @endif
     </style>
 
     @yield('css')
+    @stack('styles')
 </head>
