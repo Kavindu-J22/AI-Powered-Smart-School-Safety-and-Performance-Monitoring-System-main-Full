@@ -173,6 +173,9 @@ class HomeworkController extends Controller
 
     public function generateQuestions(Request $request): JsonResponse
     {
+        // Allow up to 5 minutes — the ML server may need to download the model on first run
+        set_time_limit(300);
+
         $validated = $request->validate([
             'lesson_id' => 'required|exists:lessons,lesson_id',
             'num_mcq' => 'integer|min:0|max:10',

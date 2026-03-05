@@ -17,12 +17,17 @@ class HomeworkAIService
     }
 
     /**
-     * Generate questions from lesson content
+     * Generate questions from lesson content.
+     * Uses a 5-minute timeout because the ML server may download model weights
+     * from HuggingFace on first use (cold-start can take 2-4 minutes).
      */
     public function generateQuestions(array $lessonData, int $numMcq = 2, int $numShort = 2, int $numDescriptive = 1): array
     {
+        // Use a longer timeout for question generation to accommodate ML model cold-starts
+        $generateTimeout = config('services.homework_ai.generate_timeout', 300);
+
         try {
-            $response = Http::timeout($this->timeout)
+            $response = Http::timeout($generateTimeout)
                 ->post("{$this->baseUrl}/api/lessons/generate-questions", [
                     'lesson_data' => $lessonData,
                     'num_mcq' => $numMcq,
