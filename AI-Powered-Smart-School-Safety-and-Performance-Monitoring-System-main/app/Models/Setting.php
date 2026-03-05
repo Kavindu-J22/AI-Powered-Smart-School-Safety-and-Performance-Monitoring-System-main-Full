@@ -50,11 +50,13 @@ class Setting extends Model
         'enable_animations',
         'sidebar_style',
         'navbar_style',
+        'auto_homework_enabled',
     ];
 
     protected $casts = [
         'working_days' => 'array',
         'enable_animations' => 'boolean',
+        'auto_homework_enabled' => 'boolean',
         'established_year' => 'integer',
         'total_capacity' => 'integer',
         'school_start_time' => 'datetime:H:i',
@@ -75,6 +77,7 @@ class Setting extends Model
         'enable_animations' => true,
         'sidebar_style' => 'modern',
         'navbar_style' => 'glass',
+        'auto_homework_enabled' => false,
         'academic_year_start' => 'January',
         'academic_year_end' => 'December',
         'school_start_time' => '08:00:00',

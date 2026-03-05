@@ -294,6 +294,158 @@
         align-items: center;
         gap: 7px;
     }
+
+    /* ── Auto-Homework Toggle Card ── */
+    .auto-hw-card {
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: 0 2px 20px rgba(67, 206, 162, .13);
+        overflow: hidden;
+        margin-bottom: 28px;
+        border: 2px solid transparent;
+        transition: border-color .3s;
+    }
+
+    .auto-hw-card.enabled {
+        border-color: #43cea2;
+    }
+
+    .auto-hw-card.disabled {
+        border-color: #e2e8f0;
+    }
+
+    .auto-hw-header {
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        background: linear-gradient(135deg, #f0fff8 0%, #e6f7ff 100%);
+        border-bottom: 1px solid #e6f4ef;
+    }
+
+    .auto-hw-header .auto-hw-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #43cea2, #185a9d);
+        flex-shrink: 0;
+    }
+
+    .auto-hw-header .auto-hw-icon .material-symbols-outlined {
+        font-size: 26px;
+        color: #fff;
+    }
+
+    .auto-hw-header .auto-hw-title {
+        flex: 1;
+    }
+
+    .auto-hw-header .auto-hw-title h5 {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #1a2550;
+        margin: 0 0 2px;
+    }
+
+    .auto-hw-header .auto-hw-title p {
+        font-size: .8rem;
+        color: #718096;
+        margin: 0;
+    }
+
+    /* Toggle switch */
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 56px;
+        height: 30px;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #cbd5e0;
+        border-radius: 30px;
+        transition: .35s;
+    }
+
+    .toggle-slider:before {
+        position: absolute;
+        content: '';
+        height: 22px;
+        width: 22px;
+        left: 4px;
+        bottom: 4px;
+        background: #fff;
+        border-radius: 50%;
+        transition: .35s;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, .18);
+    }
+
+    input:checked+.toggle-slider {
+        background: linear-gradient(135deg, #43cea2, #185a9d);
+    }
+
+    input:checked+.toggle-slider:before {
+        transform: translateX(26px);
+    }
+
+    .auto-hw-body {
+        padding: 20px 24px;
+    }
+
+    .auto-hw-stat-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #f0fff8;
+        border: 1px solid #c6f6e0;
+        border-radius: 50px;
+        padding: 5px 14px;
+        font-size: .78rem;
+        font-weight: 600;
+        color: #276749;
+        margin-right: 8px;
+        margin-bottom: 8px;
+    }
+
+    .auto-hw-stat-chip .material-symbols-outlined {
+        font-size: 15px;
+        color: #43cea2;
+    }
+
+    .auto-hw-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 14px;
+        border-radius: 50px;
+        font-size: .78rem;
+        font-weight: 700;
+    }
+
+    .auto-hw-status-badge.on {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .auto-hw-status-badge.off {
+        background: #fee2e2;
+        color: #991b1b;
+    }
 </style>
 @endpush
 
@@ -462,6 +614,51 @@
             </div>
         </div>
 
+        {{-- Auto-Homework Toggle Panel --}}
+        <div class="auto-hw-card {{ $autoHomeworkEnabled ? 'enabled' : 'disabled' }}" id="autoHwCard">
+            <div class="auto-hw-header">
+                <div class="auto-hw-icon">
+                    <span class="material-symbols-outlined">auto_mode</span>
+                </div>
+                <div class="auto-hw-title">
+                    <h5>Auto Weekly Homework Generation</h5>
+                    <p>Automatically creates 2 assignments per week for every grade &amp; subject that has published lessons</p>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="auto-hw-status-badge {{ $autoHomeworkEnabled ? 'on' : 'off' }}" id="autoHwStatusBadge">
+                        <span class="material-symbols-outlined" style="font-size:14px;">{{ $autoHomeworkEnabled ? 'check_circle' : 'cancel' }}</span>
+                        {{ $autoHomeworkEnabled ? 'ON' : 'OFF' }}
+                    </span>
+                    <label class="toggle-switch" title="{{ $autoHomeworkEnabled ? 'Click to disable' : 'Click to enable' }}">
+                        <input type="checkbox" id="autoHwToggle" {{ $autoHomeworkEnabled ? 'checked' : '' }}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="auto-hw-body">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <span class="auto-hw-stat-chip">
+                        <span class="material-symbols-outlined">today</span>
+                        This week: <strong>{{ $autoHomeworkStats['this_week_count'] ?? 0 }}</strong> auto assignments
+                    </span>
+                    <span class="auto-hw-stat-chip">
+                        <span class="material-symbols-outlined">assignment_turned_in</span>
+                        Total auto: <strong>{{ $autoHomeworkStats['total_auto'] ?? 0 }}</strong>
+                    </span>
+                    <span class="auto-hw-stat-chip">
+                        <span class="material-symbols-outlined">schedule</span>
+                        Next run: <strong>{{ $autoHomeworkStats['next_run'] ?? 'Every Monday 6:00 AM' }}</strong>
+                    </span>
+                </div>
+                <div id="autoHwFeedback" class="d-none alert" style="border-radius:10px;margin-bottom:0;font-size:.85rem;"></div>
+                <p class="mb-0" style="font-size:.78rem;color:#a0aec0;">
+                    <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">info</span>
+                    When enabled, the system runs every <strong>Monday at 6:00 AM</strong> and creates 2 assignments per grade/subject.
+                    New lessons are prioritised. Existing auto-assignments for the current week are never duplicated.
+                </p>
+            </div>
+        </div>
+
         {{-- AI Features --}}
         <div class="ai-section-header mt-3">
             <span class="material-symbols-outlined" style="font-size:16px;">auto_awesome</span> AI-Powered Features
@@ -624,6 +821,61 @@
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+
+        // ── Auto Homework Toggle ──────────────────────────────────────────
+        const autoHwToggle = document.getElementById('autoHwToggle');
+        const autoHwCard = document.getElementById('autoHwCard');
+        const autoHwBadge = document.getElementById('autoHwStatusBadge');
+        const autoHwFeedback = document.getElementById('autoHwFeedback');
+
+        if (autoHwToggle) {
+            autoHwToggle.addEventListener('change', async function() {
+                const willEnable = this.checked;
+
+                // Optimistic UI update
+                autoHwCard.className = 'auto-hw-card ' + (willEnable ? 'enabled' : 'disabled');
+                autoHwBadge.className = 'auto-hw-status-badge ' + (willEnable ? 'on' : 'off');
+                autoHwBadge.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px;">${willEnable ? 'check_circle' : 'cancel'}</span> ${willEnable ? 'ON' : 'OFF'}`;
+
+                autoHwFeedback.className = 'alert alert-secondary';
+                autoHwFeedback.textContent = 'Updating…';
+
+                try {
+                    const resp = await fetch('{{ route("admin.management.homework.toggle-auto-homework") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({}),
+                    });
+
+                    const data = await resp.json();
+
+                    if (data.success) {
+                        autoHwFeedback.className = 'alert alert-success';
+                        autoHwFeedback.textContent = data.message;
+                    } else {
+                        // Revert on failure
+                        autoHwToggle.checked = !willEnable;
+                        autoHwCard.className = 'auto-hw-card ' + (willEnable ? 'disabled' : 'enabled');
+                        autoHwBadge.className = 'auto-hw-status-badge ' + (willEnable ? 'off' : 'on');
+                        autoHwBadge.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px;">${!willEnable ? 'check_circle' : 'cancel'}</span> ${!willEnable ? 'ON' : 'OFF'}`;
+                        autoHwFeedback.className = 'alert alert-danger';
+                        autoHwFeedback.textContent = data.error || 'Failed to update setting.';
+                    }
+                } catch (err) {
+                    autoHwToggle.checked = !willEnable;
+                    autoHwFeedback.className = 'alert alert-danger';
+                    autoHwFeedback.textContent = 'Network error. Please try again.';
+                }
+
+                autoHwFeedback.classList.remove('d-none');
+                setTimeout(() => autoHwFeedback.classList.add('d-none'), 4000);
+            });
+        }
+
         // Schedule Weekly Homework
         const scheduleBtn = document.getElementById('scheduleWeeklyBtn');
         if (scheduleBtn) {

@@ -216,6 +216,7 @@ Route::middleware(['auth'])->group(function () {
                 Route::put('/{homework}', 'update')->name('update');
                 Route::post('/generate-questions', 'generateQuestions')->name('generate-questions');
                 Route::post('/schedule-weekly', 'scheduleWeekly')->name('schedule-weekly');
+                Route::post('/toggle-auto-homework', 'toggleAutoHomework')->name('toggle-auto-homework');
                 Route::post('/{homework}/assign', 'assignToStudents')->name('assign');
 
                 // Submissions

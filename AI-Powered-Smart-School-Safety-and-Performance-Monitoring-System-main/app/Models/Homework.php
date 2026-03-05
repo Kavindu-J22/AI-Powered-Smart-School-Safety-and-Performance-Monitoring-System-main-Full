@@ -36,6 +36,7 @@ class Homework extends Model
         'status',
         'week_number',
         'academic_year',
+        'auto_generated',
     ];
 
     protected $casts = [
@@ -45,6 +46,7 @@ class Homework extends Model
         'grade_level' => 'integer',
         'total_marks' => 'integer',
         'week_number' => 'integer',
+        'auto_generated' => 'boolean',
     ];
 
     // Relationships

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Homework;
 use App\Models\HomeworkSubmission;
 use App\Models\Lesson;
+use App\Models\Setting;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\SchoolClass;
@@ -58,14 +59,56 @@ class HomeworkController extends Controller
         $classes = SchoolClass::orderBy('class_name')->get();
         $lessons = Lesson::published()->orderBy('title')->get();
 
+        // Auto-homework settings
+        $setting = Setting::first();
+        $autoHomeworkEnabled = $setting ? (bool) $setting->auto_homework_enabled : false;
+
+        // Stats for auto-generated homework
+        $today = now();
+        $autoHomeworkStats = [
+            'enabled'         => $autoHomeworkEnabled,
+            'this_week_count' => Homework::where('auto_generated', true)
+                ->where('week_number', $today->weekOfYear)
+                ->where('academic_year', Homework::getCurrentAcademicYear())
+                ->count(),
+            'total_auto'      => Homework::where('auto_generated', true)->count(),
+            'next_run'        => now()->next('Monday')->setTime(6, 0)->format('D, M d Y \a\t h:i A'),
+        ];
+
         return view($this->viewDirectory . 'dashboard', compact(
             'stats',
             'recentHomework',
             'overdueHomework',
             'subjects',
             'classes',
-            'lessons'
+            'lessons',
+            'autoHomeworkEnabled',
+            'autoHomeworkStats'
         ));
+    }
+
+    public function toggleAutoHomework(Request $request): JsonResponse
+    {
+        try {
+            $setting = Setting::first();
+            if (! $setting) {
+                return response()->json(['success' => false, 'error' => 'Settings not found.'], 404);
+            }
+
+            $newState = ! $setting->auto_homework_enabled;
+            $setting->update(['auto_homework_enabled' => $newState]);
+
+            return response()->json([
+                'success' => true,
+                'enabled' => $newState,
+                'message' => $newState
+                    ? 'Auto homework generation has been enabled. Assignments will be created every Monday at 6:00 AM.'
+                    : 'Auto homework generation has been disabled.',
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('toggleAutoHomework error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function create(): View
