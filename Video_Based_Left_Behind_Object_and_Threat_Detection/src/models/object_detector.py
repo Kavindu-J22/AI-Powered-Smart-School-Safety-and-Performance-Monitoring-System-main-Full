@@ -502,7 +502,7 @@ class LeftBehindObjectDetector:
                 if ix2 <= ix1 or iy2 <= iy1:
                     continue
                 containment = (ix2 - ix1) * (iy2 - iy1) / det_area
-                if containment >= 0.45:
+                if containment >= 0.60:
                     logger.debug(
                         f"Person-overlap suppressed '{det['class_name']}' "
                         f"(containment={containment:.2f}): {det['bbox']}"
@@ -539,21 +539,12 @@ class LeftBehindObjectDetector:
         """
         proc = self._preprocess_frame(frame) if enhance_frame else frame
 
-        # ── Primary model: tiled + full-frame fusion ───────────────────────
-        # Tiled inference catches small objects (Pen, eraser) that are too
-        # tiny in the full 640x640 view.  Full-frame run catches large objects
-        # that might be clipped by tile edges.
-        tiled_dets = self._run_primary_tiled(
+        # ── Primary model: tiled inference only ───────────────────────────
+        # 2x2 tiles with 20% overlap already cover 100% of the frame —
+        # there is no need for a separate full-frame pass.
+        # Removing it saves one YOLO call per frame (~200-400ms on CPU).
+        combined_primary = self._run_primary_tiled(
             proc, filter_classes=filter_classes, include_unknown=include_unknown
-        )
-        full_dets = self._run_model(
-            self.model, self.class_names, self.target_class_indices,
-            proc, source_label="custom", filter_classes=filter_classes,
-            include_unknown=include_unknown,
-        )
-        # Merge full-frame results into tiled, then NMS the combined set
-        combined_primary = self._nms_detections(
-            tiled_dets + full_dets, iou_threshold=self.iou_threshold
         )
 
         # ── Secondary model (COCO yolov8s) ────────────────────────────────

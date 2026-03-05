@@ -81,8 +81,8 @@ object_detection:
     # Secondary COCO model for items not in custom model (book, cell phone, keyboard…)
     secondary_weights: "yolov8s.pt"
     input_size: [640, 640]
-    confidence_threshold: 0.40        # Professional standard — reduces false positives
-    secondary_confidence_threshold: 0.40  # Same bar for COCO model
+    confidence_threshold: 0.30        # Balanced: catches phones/bottles without face FPs
+    secondary_confidence_threshold: 0.30  # Same bar for COCO model
     iou_threshold: 0.45
 
   # Classes to detect — includes BOTH custom-model names AND COCO names.
@@ -126,7 +126,7 @@ object_detection:
   left_behind_threshold: 60
 
   # Minimum object size (pixels²) — kept low for small items like pens
-  min_object_size: 800  # Professional minimum — filters out tiny noise blobs
+  min_object_size: 400  # Phone at 2-3m = ~20x50px = 1000px²; 400 gives comfortable margin
 
 # Threat Detection Configuration
 threat_detection:
@@ -150,8 +150,8 @@ threat_detection:
 # Tracking Configuration
 tracking:
   algorithm: "deepsort"  # or "sort", "bytetrack"
-  max_age: 5  # Maximum frames to keep alive a track without detections (reduced from 30 for faster clearing)
-  min_hits: 2  # Minimum detections before track is confirmed (reduced from 3 for faster detection)
+  max_age: 2  # Remove box after 2 missed frames — nearly instant removal
+  min_hits: 1  # Show box on very first detection — no appearance delay
   iou_threshold: 0.3
 
 # Notification Configuration

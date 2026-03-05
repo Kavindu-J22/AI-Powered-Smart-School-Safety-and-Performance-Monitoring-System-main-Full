@@ -11,6 +11,7 @@ import base64
 import logging
 import os
 import sys
+import threading
 from pathlib import Path
 from datetime import datetime
 import yaml
@@ -44,6 +45,12 @@ object_detector = None
 threat_detector = None
 object_tracker = None
 config = None
+
+# ── Result cache ────────────────────────────────────────────────────────────
+# When ML inference is in progress (lock held) the next PHP request gets the
+# cached result instantly instead of stacking up → no backlog, smooth UI.
+_detection_lock  = threading.Lock()
+_cached_response = None          # Last successful process-frame result dict
 
 def initialize_models():
     """Initialize detection models"""
@@ -270,34 +277,56 @@ def create_app():
 
     @app.route('/api/video/process-frame', methods=['POST'])
     def process_frame():
-        """Process frame for both objects and threats"""
+        """Process frame for both objects and threats.
+
+        Non-blocking design: if the ML pipeline is already busy processing a
+        previous frame, the request immediately returns the last cached result
+        instead of queuing up.  This keeps the PHP UI lag-free even on slow
+        CPUs where each inference pass takes 300-600 ms.
+        """
+        global _cached_response
+
+        # ── Guard: detectors must be ready ────────────────────────────────
+        if object_detector is None and threat_detector is None:
+            logger.error("No detectors initialized (objects and threats)")
+            return jsonify({'success': False, 'error': 'No detectors initialized'}), 503
+
+        data = request.get_json()
+        if not data or 'frame' not in data:
+            return jsonify({'success': False, 'error': 'No frame data provided'}), 400
+
+        # ── Decode frame ───────────────────────────────────────────────────
         try:
-            # Ensure detectors are available
-            if object_detector is None and threat_detector is None:
-                logger.error("No detectors initialized (objects and threats)")
-                return jsonify({'success': False, 'error': 'No detectors initialized'}), 503
-
-            data = request.get_json()
-
-            if not data or 'frame' not in data:
-                return jsonify({'success': False, 'error': 'No frame data provided'}), 400
-
-            # Decode base64 frame
             frame_data = base64.b64decode(data['frame'])
             nparr = np.frombuffer(frame_data, np.uint8)
             frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        except Exception as decode_err:
+            return jsonify({'success': False, 'error': f'Frame decode error: {decode_err}'}), 400
 
-            if frame is None:
-                return jsonify({'success': False, 'error': 'Invalid frame data'}), 400
+        if frame is None:
+            return jsonify({'success': False, 'error': 'Invalid frame data'}), 400
 
-            # Detect objects
+        # ── Try to acquire the inference lock (non-blocking) ───────────────
+        # If another thread is still running inference, skip this frame and
+        # return the last cached result immediately.
+        acquired = _detection_lock.acquire(blocking=False)
+        if not acquired:
+            if _cached_response is not None:
+                cached = dict(_cached_response)
+                cached['cached'] = True   # signal to PHP that this is a repeat
+                return jsonify(cached)
+            # No cache yet and lock is held — wait briefly then proceed
+            _detection_lock.acquire(blocking=True)
+
+        try:
+            # ── Object detection ───────────────────────────────────────────
             detections = object_detector.detect(frame)
             min_size = config['object_detection']['min_object_size']
             detections = object_detector.filter_by_size(detections, min_size)
             tracked_objects = object_tracker.update(detections)
             left_behind = object_tracker.get_left_behind_objects()
 
-            # Detect threats (with error handling)
+            # ── Threat detection ───────────────────────────────────────────
             threat_result = {
                 'is_threat': False,
                 'threat_type': None,
@@ -305,7 +334,6 @@ def create_app():
                 'all_scores': {},
                 'status': 'disabled'
             }
-
             if threat_detector is not None:
                 try:
                     threat_result = threat_detector.detect(frame)
@@ -314,9 +342,10 @@ def create_app():
                     threat_result['status'] = 'error'
                     threat_result['error'] = str(threat_error)
 
-            # Prepare response
+            # ── Build result and update cache ──────────────────────────────
             result = {
                 'success': True,
+                'cached': False,
                 'objects': {
                     'detections': [
                         {
@@ -334,12 +363,16 @@ def create_app():
                 },
                 'threats': threat_result
             }
+            _cached_response = result   # store for next request if ML is busy
 
             return jsonify(result)
 
         except Exception as e:
             logger.error(f"Error processing frame: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
+
+        finally:
+            _detection_lock.release()
 
     @app.errorhandler(404)
     def not_found(error):
