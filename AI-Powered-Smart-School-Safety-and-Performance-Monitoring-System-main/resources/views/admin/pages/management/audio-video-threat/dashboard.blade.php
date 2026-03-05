@@ -35,13 +35,50 @@
             </div>
         </div>
 
+        <!-- ===================== ADMIN CONTACT NUMBER ===================== -->
+        <div class="card mb-4 border-0 shadow-sm">
+            <div class="card-body py-3">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="icon icon-md icon-shape bg-gradient-danger shadow-danger text-center border-radius-xl">
+                            <i class="material-symbols-rounded opacity-10 text-white">phone_in_talk</i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-uppercase text-secondary mb-0 fw-bold">Critical SMS Alert Recipient</p>
+                            <div id="contactDisplayRow" class="d-flex align-items-center gap-2 mt-1">
+                                <span class="font-weight-bold text-dark" id="adminContactDisplay">+9470032488</span>
+                                <button class="btn btn-outline-primary btn-xs py-1 px-2" id="editContactBtn" style="font-size:11px;">
+                                    <i class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">edit</i> Edit
+                                </button>
+                            </div>
+                            <div id="contactEditRow" class="d-none mt-1">
+                                <div class="input-group input-group-sm" style="max-width:300px;">
+                                    <span class="input-group-text"><i class="material-symbols-rounded" style="font-size:14px;">phone</i></span>
+                                    <input type="tel" class="form-control" id="adminContactInput"
+                                        placeholder="+9470032488" value="+9470032488"
+                                        pattern="^\+[0-9]{7,15}$">
+                                    <button class="btn btn-success btn-sm" id="saveContactBtn">Save</button>
+                                    <button class="btn btn-secondary btn-sm" id="cancelContactBtn">Cancel</button>
+                                </div>
+                                <div class="text-xs text-secondary mt-1">Format: +[country code][number] e.g. +9470032488</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-success" id="smsAlertStatus">SMS Alerts Active</span>
+                        <p class="text-xs text-secondary mb-0 mt-1">Twilio SMS · Critical threats only</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ===================== CRITICAL ALERT BANNER ===================== -->
         <div id="criticalAlertBanner" class="alert alert-critical d-none mb-4" role="alert">
             <div class="d-flex align-items-center gap-3">
                 <i class="material-symbols-rounded critical-icon">crisis_alert</i>
                 <div>
                     <strong>⚠ CRITICAL COMBINED THREAT DETECTED</strong>
-                    <p class="mb-0 text-sm" id="criticalAlertMsg">Simultaneous audio and video threats detected. Email alert sent.</p>
+                    <p class="mb-0 text-sm" id="criticalAlertMsg">Simultaneous audio and video threats detected. SMS alert sent.</p>
                 </div>
             </div>
         </div>

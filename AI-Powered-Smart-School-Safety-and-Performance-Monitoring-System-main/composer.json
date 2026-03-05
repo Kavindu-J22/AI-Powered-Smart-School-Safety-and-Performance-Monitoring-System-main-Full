@@ -16,6 +16,7 @@
         "laravel/ui": "^4.6",
         "spatie/laravel-permission": "^6.21",
         "theanik/laravel-more-command": "^1.3",
+        "twilio/sdk": "^8.11",
         "yajra/laravel-datatables": "^12.0"
     },
     "require-dev": {

@@ -7,8 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
+use Twilio\Rest\Client as TwilioClient;
 
 class AudioVideoThreatController extends Controller
 {
@@ -17,13 +17,14 @@ class AudioVideoThreatController extends Controller
     protected string $videoApiUrl;
     protected int $timeout = 30;
 
-    // Alert email recipient
-    protected string $alertEmail = 'cn3581743@gmail.com';
+    // Default SMS recipient (admin can override via the UI)
+    protected string $defaultAlertNumber;
 
     public function __construct()
     {
-        $this->audioApiUrl = config('services.audio_threat.url', 'http://127.0.0.1:5002');
-        $this->videoApiUrl = config('services.video_threat.url', 'http://127.0.0.1:5003');
+        $this->audioApiUrl       = config('services.audio_threat.url', 'http://127.0.0.1:5002');
+        $this->videoApiUrl       = config('services.video_threat.url', 'http://127.0.0.1:5003');
+        $this->defaultAlertNumber = config('services.twilio.alert_number', '+9470032488');
     }
 
     /**
@@ -203,15 +204,18 @@ class AudioVideoThreatController extends Controller
     }
 
     /**
-     * Send combined critical threat alert email.
+     * Send combined critical threat SMS alert via Twilio.
      * Called when BOTH audio and video threats are simultaneously detected.
+     * The recipient number can be provided dynamically by the admin UI (alert_number).
      */
     public function sendCombinedAlert(Request $request): JsonResponse
     {
         try {
-            $audioThreat = $request->input('audio_threat', []);
-            $videoThreat = $request->input('video_threat', []);
-            $timestamp   = now()->format('Y-m-d H:i:s');
+            $audioThreat  = $request->input('audio_threat', []);
+            $videoThreat  = $request->input('video_threat', []);
+            $timestamp    = now()->format('Y-m-d H:i:s');
+            // Use admin-supplied number from the UI; fall back to the default from config
+            $alertNumber  = trim($request->input('alert_number', $this->defaultAlertNumber)) ?: $this->defaultAlertNumber;
 
             // Resolve human-readable audio type:
             // For non_speech threats the actual class is nested inside non_speech_result.detected_class
@@ -224,14 +228,13 @@ class AudioVideoThreatController extends Controller
                     ->filter()->implode(', ');
                 $audioType = $keywords ? "Speech ({$keywords})" : 'Speech Threat';
             } elseif ($rawAudioType === 'combined') {
-                $nsClass  = $audioThreat['non_speech_result']['detected_class'] ?? '';
+                $nsClass   = $audioThreat['non_speech_result']['detected_class'] ?? '';
                 $audioType = $nsClass ? ucwords(str_replace('_', ' ', $nsClass)) . ' + Speech' : 'Combined Threat';
             } else {
                 $audioType = ucwords(str_replace('_', ' ', $rawAudioType));
             }
 
-            $audioLevel = $audioThreat['threat_level'] ?? 'High';
-            $audioConf  = round(($audioThreat['confidence'] ?? 0) * 100, 1);
+            $audioConf = round(($audioThreat['confidence'] ?? 0) * 100, 1);
 
             // Resolve human-readable video type
             $rawVideoType = $videoThreat['threat_type'] ?? 'Unknown';
@@ -241,46 +244,38 @@ class AudioVideoThreatController extends Controller
             // Speech transcript (if available)
             $speechText = $audioThreat['speech_result']['text'] ?? null;
 
-            $subject = 'CRITICAL COMBINED THREAT ALERT - School Safety System';
-
-            $body  = "CRITICAL PRIORITY ALERT - SIMULTANEOUS AUDIO & VIDEO THREAT DETECTED\n";
-            $body .= str_repeat('=', 65) . "\n\n";
-            $body .= "Timestamp : {$timestamp}\n\n";
-            $body .= "AUDIO THREAT\n";
-            $body .= "  Type       : {$audioType}\n";
-            $body .= "  Level      : {$audioLevel}\n";
-            $body .= "  Confidence : {$audioConf}%\n";
+            // Build a concise SMS body (Twilio standard SMS max 1600 chars)
+            $smsBody  = "⚠ CRITICAL SCHOOL THREAT ALERT ⚠\n";
+            $smsBody .= "Time: {$timestamp}\n\n";
+            $smsBody .= "AUDIO: {$audioType} ({$audioConf}%)\n";
             if ($speechText) {
-                $body .= "  Transcript : \"{$speechText}\"\n";
+                $smsBody .= "Transcript: \"{$speechText}\"\n";
             }
-            $body .= "\nVIDEO THREAT\n";
-            $body .= "  Type       : {$videoType}\n";
-            $body .= "  Confidence : {$videoConf}%\n\n";
-            $body .= "ACTION REQUIRED: Simultaneous audio and video threats indicate a high-risk\n";
-            $body .= "incident. Please review surveillance footage and dispatch security immediately.\n\n";
-            $body .= str_repeat('-', 65) . "\n";
-            $body .= "This alert was generated automatically by the School Safety Monitoring System.\n";
+            $smsBody .= "VIDEO: {$videoType} ({$videoConf}%)\n\n";
+            $smsBody .= "ACTION: Dispatch security immediately and review live footage.\n";
+            $smsBody .= "— School Safety Monitoring System";
 
-            Mail::raw($body, function ($message) use ($subject) {
-                $message->to($this->alertEmail)
-                    ->subject($subject)
-                    ->from(
-                        config('mail.from.address', 'no-reply@school.edu'),
-                        config('mail.from.name', 'School Safety System')
-                    );
-            });
+            // Send SMS via Twilio
+            $twilio = new TwilioClient(
+                config('services.twilio.sid'),
+                config('services.twilio.auth_token')
+            );
 
-            Log::critical('AudioVideo: COMBINED CRITICAL ALERT sent', [
-                'audio_threat'     => $audioType,
-                'audio_raw_type'   => $rawAudioType,
-                'video_threat'     => $videoType,
-                'email'            => $this->alertEmail,
-                'timestamp'        => $timestamp,
+            $twilio->messages->create($alertNumber, [
+                'from' => config('services.twilio.from'),
+                'body' => $smsBody,
             ]);
 
-            return response()->json(['success' => true, 'message' => 'Critical alert sent']);
+            Log::critical('AudioVideo: COMBINED CRITICAL SMS ALERT sent', [
+                'audio_threat'  => $audioType,
+                'video_threat'  => $videoType,
+                'sms_to'        => $alertNumber,
+                'timestamp'     => $timestamp,
+            ]);
+
+            return response()->json(['success' => true, 'message' => 'Critical SMS alert sent to ' . $alertNumber]);
         } catch (\Exception $e) {
-            Log::error('AudioVideo: Failed to send combined alert: ' . $e->getMessage());
+            Log::error('AudioVideo: Failed to send combined SMS alert: ' . $e->getMessage());
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }

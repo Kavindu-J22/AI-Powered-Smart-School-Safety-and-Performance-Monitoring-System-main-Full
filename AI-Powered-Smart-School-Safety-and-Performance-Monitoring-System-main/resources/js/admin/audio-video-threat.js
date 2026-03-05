@@ -90,6 +90,15 @@ class AudioVideoThreatDetector {
         this.criticalBanner  = document.getElementById('criticalAlertBanner');
         this.criticalMsg     = document.getElementById('criticalAlertMsg');
 
+        // Admin contact number UI
+        this.adminContactDisplay = document.getElementById('adminContactDisplay');
+        this.adminContactInput   = document.getElementById('adminContactInput');
+        this.contactDisplayRow   = document.getElementById('contactDisplayRow');
+        this.contactEditRow      = document.getElementById('contactEditRow');
+        this.editContactBtn      = document.getElementById('editContactBtn');
+        this.saveContactBtn      = document.getElementById('saveContactBtn');
+        this.cancelContactBtn    = document.getElementById('cancelContactBtn');
+
         this.visualizer    = document.getElementById('audioVisualizer');
         this.visualizerCtx = this.visualizer?.getContext('2d');
     }
@@ -112,6 +121,32 @@ class AudioVideoThreatDetector {
         });
 
         document.getElementById('connectEsp32Btn')?.addEventListener('click', () => this._connectEsp32());
+
+        // Admin contact number edit/save/cancel
+        this.editContactBtn?.addEventListener('click', () => {
+            this.adminContactInput.value = this.adminContactDisplay.textContent.trim();
+            this.contactDisplayRow?.classList.add('d-none');
+            this.contactEditRow?.classList.remove('d-none');
+            this.adminContactInput?.focus();
+        });
+
+        this.saveContactBtn?.addEventListener('click', () => {
+            const val = this.adminContactInput?.value?.trim();
+            if (!val || !/^\+[0-9]{7,15}$/.test(val)) {
+                this.adminContactInput?.classList.add('is-invalid');
+                return;
+            }
+            this.adminContactInput?.classList.remove('is-invalid');
+            if (this.adminContactDisplay) this.adminContactDisplay.textContent = val;
+            this.contactEditRow?.classList.add('d-none');
+            this.contactDisplayRow?.classList.remove('d-none');
+        });
+
+        this.cancelContactBtn?.addEventListener('click', () => {
+            this.adminContactInput?.classList.remove('is-invalid');
+            this.contactEditRow?.classList.add('d-none');
+            this.contactDisplayRow?.classList.remove('d-none');
+        });
     }
 
     /* ============================================================
@@ -730,11 +765,14 @@ class AudioVideoThreatDetector {
             ? videoData.threat_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
             : 'Unknown';
 
+        // Read admin contact number from UI
+        const alertNumber = this.adminContactDisplay?.textContent?.trim() || '+9470032488';
+
         // Show banner
         if (this.criticalBanner) {
             this.criticalBanner.classList.remove('d-none');
             this.criticalMsg && (this.criticalMsg.textContent =
-                `Audio: ${audioLabel} + Video: ${videoLabel} — Email alert sent!`);
+                `Audio: ${audioLabel} + Video: ${videoLabel} — SMS alert sent to ${alertNumber}`);
         }
 
         // Populate modal fields
@@ -761,14 +799,18 @@ class AudioVideoThreatDetector {
         );
         this._addHistory('CRITICAL', `${audioLabel} + ${videoLabel}`, 'Critical');
 
-        // Send email via Laravel
+        // Send SMS via Laravel → Twilio
         try {
             await fetch(this.routes.sendCombinedAlert, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrf },
-                body: JSON.stringify({ audio_threat: audioData, video_threat: videoData })
+                body: JSON.stringify({
+                    audio_threat: audioData,
+                    video_threat: videoData,
+                    alert_number: alertNumber,
+                })
             });
-        } catch (e) { console.error('Failed to send combined alert email:', e); }
+        } catch (e) { console.error('Failed to send combined alert SMS:', e); }
     }
 
     /* ============================================================

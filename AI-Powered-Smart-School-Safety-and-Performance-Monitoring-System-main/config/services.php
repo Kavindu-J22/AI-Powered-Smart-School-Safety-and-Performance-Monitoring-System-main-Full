@@ -74,4 +74,19 @@ return [
         'timeout' => env('VIDEO_THREAT_TIMEOUT', 30),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Twilio SMS Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Credentials for sending critical threat SMS alerts via Twilio.
+    |
+    */
+    'twilio' => [
+        'sid'          => env('TWILIO_SID'),
+        'auth_token'   => env('TWILIO_AUTH_TOKEN'),
+        'from'         => env('TWILIO_FROM', '+19122148002'),
+        'alert_number' => env('TWILIO_ALERT_NUMBER', '+9470032488'),
+    ],
+
 ];
