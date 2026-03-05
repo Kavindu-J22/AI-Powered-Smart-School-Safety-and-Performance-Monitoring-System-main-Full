@@ -36,9 +36,8 @@ class FlaskConfig:
     HOST = os.environ.get('FLASK_HOST', '127.0.0.1')
     PORT = int(os.environ.get('FLASK_PORT', 5003))
     CORS_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
-    # Option to disable threat detection if it's causing issues
-    # DISABLED BY DEFAULT due to SlowFast model issues
-    ENABLE_THREAT_DETECTION = os.environ.get('ENABLE_THREAT_DETECTION', 'False').lower() == 'true'
+    # Pose-based threat detection — enabled by default (no heavy dependencies)
+    ENABLE_THREAT_DETECTION = os.environ.get('ENABLE_THREAT_DETECTION', 'True').lower() == 'true'
 
 # Global instances
 object_detector = None
@@ -53,40 +52,55 @@ def initialize_models():
     try:
         # Load configuration
         config_path = Path(__file__).parent / 'config' / 'config.yaml'
-        with open(config_path, 'r') as f:
+        with open(config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
 
-        # Initialize object detector with fallback if weights not found
-        logger.info("Initializing object detector...")
+        # Initialize object detector
+        # Primary: custom-trained model (Pen, Backpack/Tas-Ransel, Laptop …)
+        # Secondary: COCO model (Book, Cell-phone, Keyboard …)
+        logger.info("Initializing object detector (dual-model mode)...")
+
         obj_weights = config['object_detection']['model'].get('weights')
         if not obj_weights or not (Path(__file__).parent / obj_weights).exists():
-            logger.warning(f"Object model weights not found at {obj_weights}, falling back to 'yolov8n.pt'")
+            logger.warning(
+                f"Primary model weights not found at '{obj_weights}', "
+                "falling back to 'yolov8n.pt'"
+            )
             obj_weights = 'yolov8n.pt'
+        else:
+            logger.info(f"Primary model: {obj_weights}")
+
+        # Secondary model (COCO) – provides book, cell phone, scissors …
+        secondary_weights = config['object_detection']['model'].get('secondary_weights', 'yolov8n.pt')
+        secondary_path = Path(__file__).parent / secondary_weights
+        # If secondary == primary (e.g. both fell back to yolov8n), skip it
+        if str(secondary_weights) == str(obj_weights):
+            secondary_weights = None
+            logger.info("Primary and secondary model are the same – single-model mode")
+        else:
+            logger.info(f"Secondary (COCO) model: {secondary_weights}")
 
         try:
             object_detector = LeftBehindObjectDetector(
                 model_path=obj_weights,
                 confidence_threshold=config['object_detection']['model']['confidence_threshold'],
-                target_classes=config['object_detection']['target_classes']
+                target_classes=config['object_detection']['target_classes'],
+                secondary_model_path=secondary_weights,
             )
         except Exception as inner_e:
-            logger.error(f"Failed to initialize LeftBehindObjectDetector with {obj_weights}: {inner_e}")
+            logger.error(f"Failed to initialize LeftBehindObjectDetector: {inner_e}")
             object_detector = None
 
-        # Initialize threat detector (ThreatDetector has its own fallbacks)
+        # Initialize threat detector (pose-based — no heavy 3D-CNN dependencies)
         if FlaskConfig.ENABLE_THREAT_DETECTION:
-            logger.info("Initializing threat detector...")
-            threat_weights = config['threat_detection']['model'].get('weights')
-            if threat_weights and not (Path(__file__).parent / threat_weights).exists():
-                logger.warning(f"Threat model weights not found at {threat_weights}, continuing with fallback model")
-                threat_weights = None
-
+            logger.info("Initializing pose-based threat detector (YOLOv8n-pose)...")
+            threat_cfg = config['threat_detection']['model']
             try:
                 threat_detector = ThreatDetector(
-                    model_path=threat_weights,
-                    model_type=config['threat_detection']['model']['type'],
-                    confidence_threshold=config['threat_detection']['model']['confidence_threshold'],
-                    clip_length=config['threat_detection']['model']['clip_length']
+                    model_path=None,           # pose model downloads automatically
+                    model_type="pose",
+                    confidence_threshold=threat_cfg.get('confidence_threshold', 0.55),
+                    clip_length=threat_cfg.get('clip_length', 16),
                 )
             except Exception as inner_e:
                 logger.error(f"Failed to initialize ThreatDetector: {inner_e}")

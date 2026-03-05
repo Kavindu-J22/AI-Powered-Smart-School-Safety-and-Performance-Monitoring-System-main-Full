@@ -75,62 +75,74 @@ cameras:
 object_detection:
   model:
     type: "yolov8"
-    weights: "models/left_behind_detector.pt"
+    # Custom-trained model with school-specific classes (Pen, Backpack/Tas-Ransel,
+    # Laptop, Water-bottle, Umbrella, Sports equipment etc.)
+    weights: "models/object_detection_training/weights/best.pt"
+    # Secondary COCO model for items not in custom model (book, cell phone, keyboard…)
+    secondary_weights: "yolov8s.pt"
     input_size: [640, 640]
-    confidence_threshold: 0.25  # Further reduced from 0.3 for better small object detection
+    confidence_threshold: 0.20  # Lowered for better small-object detection (pens, books)
     iou_threshold: 0.45
 
-  # Classes to detect as left-behind objects
+  # Classes to detect — includes BOTH custom-model names AND COCO names.
+  # Custom model class names (from best.pt / data.yaml):
+  #   Tas-Ransel, Gateway, Laptop, Pen, Baseball-bat, Water-bottle,
+  #   Tennis-racket, Basketball, Soccer-ball, Water-Bottle, water-bottle, umbrella
   target_classes:
-    - "person"        # For general detection (NEVER marked as left-behind)
-    - "backpack"
-    - "handbag"
-    - "suitcase"
-    - "book"          # Books, notebooks
-    - "bottle"        # Water bottles
-    - "cup"           # Cups, mugs
-    - "umbrella"
-    - "laptop"
-    - "cell phone"    # Mobile phones
-    - "keyboard"      # Keyboards
-    - "mouse"         # Computer mouse
-    - "remote"        # TV remotes
-    - "scissors"      # Scissors (closest to pen/pencil in COCO)
-    - "knife"         # Utility knives, cutters
-    - "spoon"         # Spoons, utensils
-    - "fork"          # Forks
-    - "bowl"          # Bowls
-    - "banana"        # Food items (for testing small objects)
-    - "apple"         # Food items
-    - "orange"        # Food items
-    - "clock"         # Clocks, watches
-    - "vase"          # Vases, containers
-    - "teddy bear"    # Toys
-    - "toothbrush"    # Small personal items
+    # ── Custom model classes (best.pt) ─────────────────────────────────────
+    - "Tas-Ransel"     # Backpack / School bag (Indonesian label in dataset)
+    - "Gateway"        # Laptop/device (Gateway brand in dataset)
+    - "Laptop"         # Laptop
+    - "Pen"            # Pen / Pencil  ← FIXED: custom model CAN detect this
+    - "Baseball-bat"   # Baseball bat
+    - "Water-bottle"   # Water bottle
+    - "Tennis-racket"  # Tennis racket
+    - "Basketball"     # Basketball
+    - "Soccer-ball"    # Soccer ball
+    - "Water-Bottle"   # Water bottle (alternate casing in dataset)
+    - "water-bottle"   # Water bottle (alternate casing in dataset)
+    - "umbrella"       # Umbrella (lowercase in custom model)
+    # ── COCO model classes (yolov8n.pt) ────────────────────────────────────
+    - "person"         # Person detection (NEVER marked as left-behind)
+    - "backpack"       # Backpack (COCO label)
+    - "handbag"        # Handbag
+    - "suitcase"       # Suitcase
+    - "book"           # Books / Notebooks  ← detected by COCO model
+    - "bottle"         # Water bottles (COCO)
+    - "cup"            # Cups, mugs
+    - "cell phone"     # Mobile phones  ← detected by COCO model
+    - "laptop"         # Laptop (COCO lowercase)
+    - "keyboard"       # Keyboard
+    - "mouse"          # Computer mouse
+    - "remote"         # TV remote
+    - "scissors"       # Scissors
+    - "clock"          # Clock / Watch
+    - "toothbrush"     # Pen-like small object (closest COCO proxy)
+    - "teddy bear"     # Soft toys
+    - "Umbrella"       # Umbrella (capitalized, matches COCO alias)
 
   # Time threshold for left-behind detection (minutes after last class)
   left_behind_threshold: 60
 
-  # Minimum object size (pixels) to consider - VERY LOW for small objects like pens
-  min_object_size: 200  # Reduced from 500 to detect very small objects
+  # Minimum object size (pixels²) — kept low for small items like pens
+  min_object_size: 150  # Reduced further for very small objects like pens
 
 # Threat Detection Configuration
 threat_detection:
   model:
-    type: "slowfast"
-    weights: "models/threat_detector.pt"
-    input_size: [224, 224]
-    clip_length: 32  # Number of frames per clip
-    confidence_threshold: 0.7
-  
-  # Threat categories
+    type: "pose"                    # YOLOv8n-pose + optical flow heuristics
+    weights: null                   # no custom weights needed — uses yolov8n-pose.pt
+    input_size: [640, 640]
+    clip_length: 16                 # smoothing history window (frames)
+    confidence_threshold: 0.55     # blended heuristic score threshold
+
+  # Threat categories detected by the pose-based system
   threat_classes:
     - "fighting"
-    - "hitting"
     - "pushing"
     - "aggressive_behavior"
-    - "weapon_detection"
-  
+    - "fall_detected"
+
   # Alert immediately on threat detection
   immediate_alert: true
 

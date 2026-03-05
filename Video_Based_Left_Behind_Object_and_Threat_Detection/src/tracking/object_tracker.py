@@ -299,8 +299,14 @@ class ObjectTracker:
             best_track_id = None
 
             for track_id, track in self.tracks.items():
-                # Only match same class
-                if track.class_id != detection['class_id']:
+                # Match by virtual class_id first; fall back to class_name
+                # comparison so detections from different models (custom vs
+                # COCO) can still be linked to the same track.
+                same_class = (
+                    track.class_id == detection['class_id']
+                    or track.class_name.lower() == detection['class_name'].lower()
+                )
+                if not same_class:
                     continue
 
                 iou = self._calculate_iou(detection['bbox'], track.bbox)

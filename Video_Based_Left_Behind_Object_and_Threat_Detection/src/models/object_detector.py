@@ -1,6 +1,13 @@
 """
 Left-Behind Object Detection Model
-Uses YOLOv8 for detecting objects left in classrooms
+Uses YOLOv8 for detecting objects left in classrooms.
+
+Enhanced with dual-model detection:
+  • Primary: custom-trained best.pt (Pen, Backpack/Tas-Ransel, Laptop,
+             Water-bottle, Umbrella, Sports equipment …)
+  • Secondary: yolov8n.pt COCO baseline (Book, Cell-phone, Keyboard …)
+
+Together they cover all school-relevant items without any re-training.
 """
 
 import torch
@@ -13,189 +20,413 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# School-context display-name aliases
+# Maps raw model class names → human-friendly school labels
+# ---------------------------------------------------------------------------
+SCHOOL_CLASS_ALIASES: Dict[str, str] = {
+    # Custom model (best.pt) — Indonesian & brand labels
+    "tas-ransel":    "Backpack",          # Indonesian for backpack
+    "Tas-Ransel":    "Backpack",
+    "gateway":       "Laptop",            # Gateway brand device
+    "Gateway":       "Laptop",
+    "Laptop":        "Laptop",
+    "laptop":        "Laptop",
+    "Pen":           "Pen/Pencil",
+    "pen":           "Pen/Pencil",
+    "Baseball-bat":  "Baseball Bat",
+    "baseball-bat":  "Baseball Bat",
+    "Water-bottle":  "Water Bottle",
+    "Water-Bottle":  "Water Bottle",
+    "water-bottle":  "Water Bottle",
+    "Tennis-racket": "Tennis Racket",
+    "tennis-racket": "Tennis Racket",
+    "Basketball":    "Basketball",
+    "basketball":    "Basketball",
+    "Soccer-ball":   "Soccer Ball",
+    "soccer-ball":   "Soccer Ball",
+    "umbrella":      "Umbrella",
+    "Umbrella":      "Umbrella",
+    # COCO model names
+    "backpack":      "Backpack",
+    "handbag":       "Handbag",
+    "suitcase":      "Suitcase",
+    "book":          "Book/Notebook",
+    "bottle":        "Water Bottle",
+    "cup":           "Cup",
+    "cell phone":    "Mobile Phone",
+    "keyboard":      "Keyboard",
+    "mouse":         "Computer Mouse",
+    "remote":        "Remote Control",
+    "scissors":      "Scissors",
+    "clock":         "Clock/Watch",
+    "toothbrush":    "Pen-like Object",
+    "teddy bear":    "Teddy Bear",
+    "vase":          "Vase/Container",
+}
+
+# ---------------------------------------------------------------------------
+# Virtual class IDs — unified across both models so the tracker stays sane
+# (e.g. "Backpack" from best.pt and "backpack" from COCO both → 102)
+# ---------------------------------------------------------------------------
+SCHOOL_VIRTUAL_CLASS_IDS: Dict[str, int] = {
+    "Pen/Pencil":       101,
+    "Backpack":         102,
+    "Laptop":           103,
+    "Water Bottle":     104,
+    "Umbrella":         105,
+    "Book/Notebook":    106,
+    "Mobile Phone":     107,
+    "Keyboard":         108,
+    "Computer Mouse":   109,
+    "Scissors":         110,
+    "Baseball Bat":     111,
+    "Tennis Racket":    112,
+    "Basketball":       113,
+    "Soccer Ball":      114,
+    "Handbag":          115,
+    "Suitcase":         116,
+    "Cup":              117,
+    "Clock/Watch":      118,
+    "Remote Control":   119,
+    "Pen-like Object":  120,
+    "Teddy Bear":       121,
+    "Vase/Container":   122,
+    "person":           200,   # person — never left-behind
+    "unknown":          999,
+}
+
 
 class LeftBehindObjectDetector:
     """
-    Detects left-behind objects in classroom environments using YOLOv8
+    Detects left-behind objects in classroom environments using YOLOv8.
+
+    Dual-model approach
+    -------------------
+    • Primary model  (best.pt)   – custom school dataset: Pen, Backpack
+      (Tas-Ransel), Laptop, Water-bottle, Umbrella, sports gear …
+    • Secondary model (yolov8n.pt) – COCO: Book, Cell-phone, Keyboard …
+
+    Both models run on every frame; results are merged with IoU-NMS so
+    duplicates are removed and the tracker receives consistent virtual
+    class-IDs regardless of which model fired.
     """
-    
+
     def __init__(
         self,
         model_path: str = "yolov8n.pt",
-        confidence_threshold: float = 0.5,
+        confidence_threshold: float = 0.25,
         iou_threshold: float = 0.45,
         target_classes: Optional[List[str]] = None,
-        device: str = "cuda" if torch.cuda.is_available() else "cpu"
+        device: str = "cuda" if torch.cuda.is_available() else "cpu",
+        secondary_model_path: Optional[str] = None,
+        secondary_confidence_threshold: Optional[float] = None,
     ):
         """
-        Initialize the object detector
-        
         Args:
-            model_path: Path to YOLOv8 model weights
-            confidence_threshold: Minimum confidence for detections
-            iou_threshold: IoU threshold for NMS
-            target_classes: List of class names to detect (e.g., ['backpack', 'book'])
-            device: Device to run inference on ('cuda' or 'cpu')
+            model_path:                      Primary YOLOv8 weights (preferably custom best.pt)
+            confidence_threshold:            Min confidence for primary model
+            iou_threshold:                   IoU threshold for NMS
+            target_classes:                  Class names to keep (from either model)
+            device:                          'cuda' or 'cpu'
+            secondary_model_path:            Optional second YOLOv8 weights (e.g. yolov8s.pt)
+            secondary_confidence_threshold:  Confidence for secondary model (default: conf+0.08)
         """
         self.model_path = model_path
         self.confidence_threshold = confidence_threshold
+        # Secondary model uses a slightly higher threshold to cut false positives
+        self.secondary_confidence_threshold = (
+            secondary_confidence_threshold
+            if secondary_confidence_threshold is not None
+            else min(confidence_threshold + 0.08, 0.60)
+        )
         self.iou_threshold = iou_threshold
         self.device = device
-        
-        # Default target classes for left-behind objects
+
+        # Default target classes — covers both custom & COCO names
         if target_classes is None:
             self.target_classes = [
-                'backpack', 'handbag', 'suitcase', 'book', 
-                'bottle', 'umbrella', 'laptop', 'cell phone'
+                # custom model
+                'Tas-Ransel', 'Gateway', 'Laptop', 'Pen',
+                'Baseball-bat', 'Water-bottle', 'Water-Bottle', 'water-bottle',
+                'Tennis-racket', 'Basketball', 'Soccer-ball', 'umbrella',
+                # COCO model
+                'backpack', 'handbag', 'suitcase', 'book', 'bottle', 'cup',
+                'cell phone', 'laptop', 'keyboard', 'mouse', 'remote',
+                'scissors', 'clock', 'toothbrush', 'teddy bear', 'umbrella',
             ]
         else:
             self.target_classes = target_classes
-        
-        # Load model
-        logger.info(f"Loading YOLOv8 model from {model_path}")
+
+        # ── Primary model ──────────────────────────────────────────────────
+        logger.info(f"Loading primary YOLOv8 model from {model_path}")
         self.model = YOLO(model_path)
         self.model.to(self.device)
-        
-        # Get class names from model
         self.class_names = self.model.names
-        
-        # Create mapping of target class names to indices
-        self.target_class_indices = self._get_target_class_indices()
-        
-        logger.info(f"Model loaded successfully on {self.device}")
-        logger.info(f"Target classes: {self.target_classes}")
-        logger.info(f"Target class indices: {self.target_class_indices}")
-    
-    def _get_target_class_indices(self) -> List[int]:
-        """Get indices of target classes from model class names"""
-        indices = []
-        for target_class in self.target_classes:
-            for idx, class_name in self.class_names.items():
-                if target_class.lower() in class_name.lower():
-                    indices.append(idx)
+        self.target_class_indices = self._get_target_class_indices(
+            self.class_names, self.target_classes
+        )
+        logger.info(
+            f"Primary model loaded | classes: {list(self.class_names.values())} "
+            f"| target indices: {self.target_class_indices}"
+        )
+
+        # ── Secondary model (optional) ─────────────────────────────────────
+        self.secondary_model: Optional[YOLO] = None
+        self.secondary_class_names: Dict[int, str] = {}
+        self.secondary_target_class_indices: List[int] = []
+
+        if secondary_model_path and secondary_model_path != model_path:
+            try:
+                logger.info(f"Loading secondary YOLOv8 model from {secondary_model_path}")
+                self.secondary_model = YOLO(secondary_model_path)
+                self.secondary_model.to(self.device)
+                self.secondary_class_names = self.secondary_model.names
+                self.secondary_target_class_indices = self._get_target_class_indices(
+                    self.secondary_class_names, self.target_classes
+                )
+                logger.info(
+                    f"Secondary model loaded | target indices: "
+                    f"{self.secondary_target_class_indices}"
+                )
+            except Exception as exc:
+                logger.warning(
+                    f"Could not load secondary model '{secondary_model_path}': {exc}. "
+                    "Continuing with primary model only."
+                )
+                self.secondary_model = None
+
+        logger.info(f"LeftBehindObjectDetector ready on {self.device}")
+
+    # ── Class-index helpers ────────────────────────────────────────────────
+
+    def _get_target_class_indices(
+        self, class_names: Dict[int, str], target_classes: List[str]
+    ) -> List[int]:
+        """
+        Return model class indices that match any entry in target_classes.
+        Matching is case-insensitive and checks both directions (substring).
+        """
+        indices: List[int] = []
+        target_lower = [t.lower() for t in target_classes]
+
+        for idx, class_name in class_names.items():
+            cn_lower = class_name.lower()
+            for tgt in target_lower:
+                if tgt == cn_lower or tgt in cn_lower or cn_lower in tgt:
+                    if idx not in indices:
+                        indices.append(idx)
                     break
         return indices
+
+    def _get_display_name(self, raw_name: str) -> str:
+        """Map a raw model class name to a school-friendly label."""
+        if raw_name in SCHOOL_CLASS_ALIASES:
+            return SCHOOL_CLASS_ALIASES[raw_name]
+        # Case-insensitive fallback
+        for key, val in SCHOOL_CLASS_ALIASES.items():
+            if raw_name.lower() == key.lower():
+                return val
+        # Auto-format unknown names
+        return raw_name.replace("-", " ").replace("_", " ").title()
+
+    def _get_virtual_class_id(self, display_name: str) -> int:
+        """
+        Return a stable virtual class-ID for a display name so that
+        detections from the custom model and the COCO model share the
+        same ID for the same semantic category (e.g. both 'Backpack').
+        """
+        if display_name in SCHOOL_VIRTUAL_CLASS_IDS:
+            return SCHOOL_VIRTUAL_CLASS_IDS[display_name]
+        # Fallback: hash to a high integer range
+        return abs(hash(display_name)) % 10000 + 1000
+
+    # ── Frame pre-processing ───────────────────────────────────────────────
+
+    def _preprocess_frame(self, frame: np.ndarray) -> np.ndarray:
+        """
+        Apply CLAHE contrast enhancement so small objects (pens, small books)
+        stand out better against uniform classroom surfaces.
+        """
+        try:
+            lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+            l_ch, a_ch, b_ch = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            l_ch = clahe.apply(l_ch)
+            enhanced = cv2.merge([l_ch, a_ch, b_ch])
+            return cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
+        except Exception:
+            return frame  # Return original on failure
     
+    # ── Internal YOLO runner ───────────────────────────────────────────────
+
+    def _run_model(
+        self,
+        model: YOLO,
+        class_names: Dict[int, str],
+        target_indices: List[int],
+        frame: np.ndarray,
+        source_label: str = "primary",
+        filter_classes: bool = True,
+        include_unknown: bool = True,
+        conf: Optional[float] = None,
+    ) -> List[Dict]:
+        """Run one YOLO model and return normalised detection dicts."""
+        detections: List[Dict] = []
+        effective_conf = conf if conf is not None else self.confidence_threshold
+        try:
+            # Pass target class indices directly to YOLO so it filters at
+            # inference time — faster and avoids false positives from
+            # irrelevant classes being processed at all.
+            infer_classes = target_indices if (filter_classes and target_indices) else None
+            results = model(
+                frame,
+                conf=effective_conf,
+                iou=self.iou_threshold,
+                classes=infer_classes,
+                verbose=False,
+            )[0]
+
+            if results.boxes is None:
+                return detections
+
+            boxes       = results.boxes.xyxy.cpu().numpy()
+            confidences = results.boxes.conf.cpu().numpy()
+            class_ids   = results.boxes.cls.cpu().numpy().astype(int)
+
+            for box, conf, class_id in zip(boxes, confidences, class_ids):
+                is_target = class_id in target_indices
+
+                if filter_classes and not is_target and not include_unknown:
+                    continue
+
+                raw_name     = class_names.get(int(class_id), f"cls_{class_id}")
+                display_name = self._get_display_name(raw_name) if is_target else "unknown"
+                virtual_id   = self._get_virtual_class_id(display_name)
+
+                detections.append({
+                    'bbox':                box.tolist(),
+                    'confidence':          float(conf),
+                    'class_id':            virtual_id,       # cross-model stable ID
+                    'raw_class_id':        int(class_id),    # original model ID
+                    'class_name':          display_name,
+                    'original_class_name': raw_name,
+                    'is_unknown':          not is_target,
+                    'source':              source_label,
+                })
+        except Exception as exc:
+            logger.error(f"Error running {source_label} model: {exc}")
+        return detections
+
+    def _calculate_iou(self, b1: List[float], b2: List[float]) -> float:
+        """Intersection-over-Union for two [x1,y1,x2,y2] boxes."""
+        xi1, yi1 = max(b1[0], b2[0]), max(b1[1], b2[1])
+        xi2, yi2 = min(b1[2], b2[2]), min(b1[3], b2[3])
+        if xi2 < xi1 or yi2 < yi1:
+            return 0.0
+        inter = (xi2 - xi1) * (yi2 - yi1)
+        area1 = (b1[2] - b1[0]) * (b1[3] - b1[1])
+        area2 = (b2[2] - b2[0]) * (b2[3] - b2[1])
+        union = area1 + area2 - inter
+        return inter / union if union > 0 else 0.0
+
+    def _merge_detections(
+        self,
+        primary: List[Dict],
+        secondary: List[Dict],
+        iou_merge_threshold: float = 0.45,
+    ) -> List[Dict]:
+        """
+        Merge secondary detections into primary, skipping any secondary box
+        that overlaps significantly with an already-present primary box.
+        Primary model (custom-trained) takes precedence when overlap occurs.
+        """
+        if not secondary:
+            return primary
+        merged = list(primary)
+        for sec in secondary:
+            duplicate = any(
+                self._calculate_iou(sec['bbox'], pri['bbox']) >= iou_merge_threshold
+                for pri in merged
+            )
+            if not duplicate:
+                merged.append(sec)
+        return merged
+
+    # ── Public detection API ───────────────────────────────────────────────
+
     def detect(
         self,
         frame: np.ndarray,
         filter_classes: bool = True,
-        include_unknown: bool = True
+        include_unknown: bool = True,
+        enhance_frame: bool = True,
     ) -> List[Dict]:
         """
-        Detect objects in a frame
+        Detect objects in a frame using dual-model inference.
 
         Args:
-            frame: Input image (BGR format)
-            filter_classes: Whether to filter only target classes
-            include_unknown: Whether to include unknown objects (not in target_classes)
+            frame:          Input image (BGR format)
+            filter_classes: Keep only target-class detections
+            include_unknown: Also include non-target detections when filter_classes=True
+            enhance_frame:  Apply CLAHE contrast enhancement before inference
 
         Returns:
             List of detections, each containing:
-                - bbox: [x1, y1, x2, y2]
-                - confidence: float
-                - class_id: int
-                - class_name: str
-                - is_unknown: bool (True if not in target_classes)
+              bbox, confidence, class_id (virtual), class_name (display),
+              original_class_name, is_unknown, source
         """
-        # Run inference
-        results = self.model(
-            frame,
-            conf=self.confidence_threshold,
-            iou=self.iou_threshold,
-            verbose=False
-        )[0]
+        proc = self._preprocess_frame(frame) if enhance_frame else frame
 
-        detections = []
+        # Run primary (custom) model
+        primary_dets = self._run_model(
+            self.model, self.class_names, self.target_class_indices,
+            proc, source_label="custom", filter_classes=filter_classes,
+            include_unknown=include_unknown,
+        )
 
-        # Process results
-        if results.boxes is not None:
-            boxes = results.boxes.xyxy.cpu().numpy()  # x1, y1, x2, y2
-            confidences = results.boxes.conf.cpu().numpy()
-            class_ids = results.boxes.cls.cpu().numpy().astype(int)
+        # Run secondary (COCO) model if available — use higher confidence to
+        # cut false positives from the larger, more general model.
+        secondary_dets: List[Dict] = []
+        if self.secondary_model is not None:
+            secondary_dets = self._run_model(
+                self.secondary_model, self.secondary_class_names,
+                self.secondary_target_class_indices,
+                proc, source_label="coco", filter_classes=filter_classes,
+                include_unknown=include_unknown,
+                conf=self.secondary_confidence_threshold,
+            )
 
-            for box, conf, class_id in zip(boxes, confidences, class_ids):
-                is_target_class = class_id in self.target_class_indices
-
-                # Skip if filtering and not a target class and not including unknown
-                if filter_classes and not is_target_class and not include_unknown:
-                    continue
-
-                # Determine class name
-                original_class_name = self.class_names[class_id]
-                class_name = original_class_name if is_target_class else "unknown"
-
-                detection = {
-                    'bbox': box.tolist(),
-                    'confidence': float(conf),
-                    'class_id': int(class_id),
-                    'class_name': class_name,
-                    'original_class_name': original_class_name,  # Keep original for reference
-                    'is_unknown': not is_target_class
-                }
-                detections.append(detection)
-
-        return detections
+        return self._merge_detections(primary_dets, secondary_dets)
     
     def detect_batch(
         self,
         frames: List[np.ndarray],
         filter_classes: bool = True,
-        include_unknown: bool = True
+        include_unknown: bool = True,
+        enhance_frame: bool = True,
     ) -> List[List[Dict]]:
         """
-        Detect objects in multiple frames (batch processing)
+        Detect objects in multiple frames using dual-model inference.
 
         Args:
-            frames: List of input images
-            filter_classes: Whether to filter only target classes
-            include_unknown: Whether to include unknown objects (not in target_classes)
+            frames:         List of input images (BGR)
+            filter_classes: Keep only target-class detections
+            include_unknown: Also include non-target detections
+            enhance_frame:  Apply CLAHE before inference
 
         Returns:
-            List of detection lists for each frame
+            List of detection lists, one per frame
         """
-        # Run batch inference
-        results = self.model(
-            frames,
-            conf=self.confidence_threshold,
-            iou=self.iou_threshold,
-            verbose=False
-        )
-
-        all_detections = []
-
-        for result in results:
-            detections = []
-
-            if result.boxes is not None:
-                boxes = result.boxes.xyxy.cpu().numpy()
-                confidences = result.boxes.conf.cpu().numpy()
-                class_ids = result.boxes.cls.cpu().numpy().astype(int)
-
-                for box, conf, class_id in zip(boxes, confidences, class_ids):
-                    is_target_class = class_id in self.target_class_indices
-
-                    # Skip if filtering and not a target class and not including unknown
-                    if filter_classes and not is_target_class and not include_unknown:
-                        continue
-
-                    # Determine class name
-                    original_class_name = self.class_names[class_id]
-                    class_name = original_class_name if is_target_class else "unknown"
-
-                    detection = {
-                        'bbox': box.tolist(),
-                        'confidence': float(conf),
-                        'class_id': int(class_id),
-                        'class_name': class_name,
-                        'original_class_name': original_class_name,
-                        'is_unknown': not is_target_class
-                    }
-                    detections.append(detection)
-
-            all_detections.append(detections)
-
-        return all_detections
+        return [
+            self.detect(
+                frame,
+                filter_classes=filter_classes,
+                include_unknown=include_unknown,
+                enhance_frame=enhance_frame,
+            )
+            for frame in frames
+        ]
 
     def visualize_detections(
         self,

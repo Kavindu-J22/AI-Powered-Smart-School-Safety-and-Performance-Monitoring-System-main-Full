@@ -1,394 +1,320 @@
 """
-Threat Detection Model
-Uses video action recognition to detect aggressive/violent behavior
+Threat Detection Model - Pose-Based Approach
+
+Detects threatening behavior using YOLOv8-pose keypoints + optical flow.
+No external datasets or heavy frameworks required — works on CPU.
+
+How it works
+------------
+1. YOLOv8n-pose detects people and their 17 COCO keypoints per frame.
+2. Four heuristic scores are computed:
+   - Proximity   : bounding-box overlap between any two people
+   - Arm-raise   : wrists elevated above shoulder level (punching pose)
+   - Motion      : dense optical flow magnitude in person regions
+   - Fall        : unusually wide bounding box (person knocked down)
+3. Scores are blended and smoothed over a short history window.
+4. If smoothed confidence >= threshold -> threat alert.
 """
 
-import torch
-import torch.nn as nn
 import cv2
 import numpy as np
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Optional
 from collections import deque
 import logging
 
 logger = logging.getLogger(__name__)
 
+# COCO-Pose keypoint indices
+KP_LEFT_SHOULDER  = 5
+KP_RIGHT_SHOULDER = 6
+KP_LEFT_WRIST     = 9
+KP_RIGHT_WRIST    = 10
+
 
 class ThreatDetector:
     """
-    Detects threatening behavior (fighting, aggression) in video streams
-    Uses temporal information from multiple frames
+    Detects threatening behavior (fighting, aggression, falls) using
+    YOLOv8-pose keypoints and dense optical flow — no retraining needed.
     """
-    
+
     def __init__(
         self,
-        model_path: Optional[str] = None,
-        model_type: str = "slowfast",
-        confidence_threshold: float = 0.7,
-        clip_length: int = 32,
-        device: str = "cuda" if torch.cuda.is_available() else "cpu"
+        model_path: Optional[str] = None,   # unused, kept for API compat
+        model_type: str = "pose",
+        confidence_threshold: float = 0.55,
+        clip_length: int = 16,
+        device: str = None,
     ):
-        """
-        Initialize threat detector
-        
-        Args:
-            model_path: Path to trained model weights
-            model_type: Type of model ('slowfast', 'x3d', 'i3d')
-            confidence_threshold: Minimum confidence for threat detection
-            clip_length: Number of frames to analyze together
-            device: Device to run inference on
-        """
-        self.model_path = model_path
-        self.model_type = model_type
+        import torch
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.confidence_threshold = confidence_threshold
-        self.clip_length = clip_length
-        self.device = device
-        
-        # Frame buffer for temporal analysis
-        self.frame_buffer = deque(maxlen=clip_length)
-        
-        # Threat classes
-        self.threat_classes = [
-            'fighting',
-            'hitting',
-            'pushing',
-            'aggressive_behavior',
-            'weapon_detected'
-        ]
-        
-        self.normal_class = 'normal'
-        
-        # Load model
-        self.model = self._load_model()
-        
-        logger.info(f"Threat detector initialized with {model_type} on {device}")
-    
-    def _load_model(self):
-        """Load the threat detection model"""
-        if self.model_type == "slowfast":
-            return self._load_slowfast_model()
-        elif self.model_type == "x3d":
-            return self._load_x3d_model()
-        elif self.model_type == "i3d":
-            return self._load_i3d_model()
-        else:
-            raise ValueError(f"Unknown model type: {self.model_type}")
-    
-    def _load_slowfast_model(self):
-        """Load SlowFast model for action recognition"""
+        self.history_len = max(clip_length, 4)
+        self.model_type = "pose"
+
+        # Threat class labels (returned in API response)
+        self.threat_classes = ["fighting", "pushing", "aggressive_behavior", "fall_detected"]
+        self.normal_class   = "normal"
+
+        # Score history for temporal smoothing
+        self._score_history: deque = deque(maxlen=self.history_len)
+        # Previous grayscale frame for optical flow
+        self._prev_gray: Optional[np.ndarray] = None
+        # Frame buffer for add_frame() API compatibility
+        self.frame_buffer: deque = deque(maxlen=clip_length)
+
+        self.pose_model = self._load_pose_model()
+
+    # -----------------------------------------------------------------------
+    # Model loading
+    # -----------------------------------------------------------------------
+
+    def _load_pose_model(self):
         try:
-            import pytorchvideo.models as pv_models
-            
-            # Load pre-trained SlowFast model
-            model = pv_models.slowfast.create_slowfast(
-                model_num_class=len(self.threat_classes) + 1,  # +1 for normal class
-                slowfast_channel_reduction_ratio=8,
-                slowfast_conv_channel_fusion_ratio=2,
-                slowfast_fusion_conv_kernel_size=(7, 1, 1),
-            )
-            
-            # Load custom weights if provided
-            if self.model_path:
-                logger.info(f"Loading weights from {self.model_path}")
-                checkpoint = torch.load(self.model_path, map_location=self.device)
-                model.load_state_dict(checkpoint['model_state_dict'])
-            
-            model = model.to(self.device)
-            model.eval()
-            
+            from ultralytics import YOLO
+            model = YOLO("yolov8n-pose.pt")   # ~6 MB, auto-downloads
+            model.to(self.device)
+            logger.info(f"ThreatDetector: YOLOv8n-pose loaded on {self.device}")
             return model
-            
-        except ImportError:
-            logger.warning("pytorchvideo not available, using fallback model")
-            return self._create_fallback_model()
+        except Exception as exc:
+            logger.error(f"ThreatDetector: Could not load pose model — {exc}")
+            return None
     
-    def _load_x3d_model(self):
-        """Load X3D model"""
+    # -----------------------------------------------------------------------
+    # Helper: extract persons from pose results
+    # -----------------------------------------------------------------------
+
+    def _extract_persons(self, results) -> List[Dict]:
+        """Return list of {'bbox': [x1,y1,x2,y2], 'keypoints': ndarray(17,3)}."""
+        persons = []
+        if results is None:
+            return persons
+        for r in results:
+            if r.boxes is None:
+                continue
+            boxes    = r.boxes.xyxy.cpu().numpy()
+            kps      = r.keypoints.xy.cpu().numpy()   if r.keypoints is not None else None
+            kp_confs = r.keypoints.conf.cpu().numpy() if (r.keypoints is not None and r.keypoints.conf is not None) else None
+            for i, box in enumerate(boxes):
+                kp_xy = kps[i]      if kps      is not None else np.zeros((17, 2))
+                kp_c  = kp_confs[i] if kp_confs is not None else np.zeros(17)
+                kp_full = np.concatenate([kp_xy, kp_c[:, None]], axis=1)   # (17, 3)
+                persons.append({'bbox': box.tolist(), 'keypoints': kp_full})
+        return persons
+
+    # -----------------------------------------------------------------------
+    # Heuristic scorers — each returns float in [0, 1]
+    # -----------------------------------------------------------------------
+
+    def _score_proximity(self, persons: List[Dict]) -> float:
+        """High score when two or more people's bounding boxes overlap."""
+        if len(persons) < 2:
+            return 0.0
+        max_iou = 0.0
+        for i in range(len(persons)):
+            for j in range(i + 1, len(persons)):
+                b1, b2 = persons[i]['bbox'], persons[j]['bbox']
+                xi1 = max(b1[0], b2[0]); yi1 = max(b1[1], b2[1])
+                xi2 = min(b1[2], b2[2]); yi2 = min(b1[3], b2[3])
+                if xi2 > xi1 and yi2 > yi1:
+                    inter = (xi2 - xi1) * (yi2 - yi1)
+                    a1 = (b1[2]-b1[0]) * (b1[3]-b1[1])
+                    a2 = (b2[2]-b2[0]) * (b2[3]-b2[1])
+                    iou = inter / max(a1 + a2 - inter, 1e-6)
+                    max_iou = max(max_iou, iou)
+        return min(max(max_iou - 0.1, 0.0) / 0.5, 1.0)
+
+    def _score_arm_raise(self, persons: List[Dict]) -> float:
+        """Score high when wrists are above shoulders (punching / grabbing pose)."""
+        if not persons:
+            return 0.0
+        scores = []
+        for p in persons:
+            kp = p['keypoints']
+            score, count = 0.0, 0
+            for sh_idx, wr_idx in [(KP_LEFT_SHOULDER, KP_LEFT_WRIST),
+                                   (KP_RIGHT_SHOULDER, KP_RIGHT_WRIST)]:
+                if kp[sh_idx, 2] > 0.3 and kp[wr_idx, 2] > 0.3:
+                    sh_y, wr_y = kp[sh_idx, 1], kp[wr_idx, 1]
+                    if wr_y < sh_y and sh_y > 0:
+                        score += min((sh_y - wr_y) / sh_y * 3, 1.0)
+                    count += 1
+            if count:
+                scores.append(score / count)
+        return float(np.mean(scores)) if scores else 0.0
+
+    def _score_fall(self, persons: List[Dict]) -> float:
+        """Detect fallen person — unusually wide bounding box."""
+        if not persons:
+            return 0.0
+        max_score = 0.0
+        for p in persons:
+            b = p['bbox']
+            w, h = b[2]-b[0], b[3]-b[1]
+            if h < 1:
+                continue
+            aspect = w / h   # normal standing: ~0.3-0.6; fallen: >1.5
+            if aspect > 1.5:
+                max_score = max(max_score, min((aspect - 1.5) / 1.5, 1.0))
+        return max_score
+
+    def _score_motion(self, frame_gray: np.ndarray, persons: List[Dict]) -> float:
+        """Dense optical flow magnitude inside person regions."""
+        if self._prev_gray is None or not persons:
+            return 0.0
         try:
-            import pytorchvideo.models as pv_models
-            
-            model = pv_models.x3d.create_x3d(
-                input_clip_length=self.clip_length,
-                input_crop_size=224,
-                model_num_class=len(self.threat_classes) + 1,
+            flow = cv2.calcOpticalFlowFarneback(
+                self._prev_gray, frame_gray, None, 0.5, 3, 15, 3, 5, 1.2, 0
             )
-            
-            if self.model_path:
-                checkpoint = torch.load(self.model_path, map_location=self.device)
-                model.load_state_dict(checkpoint['model_state_dict'])
-            
-            model = model.to(self.device)
-            model.eval()
-            
-            return model
-            
-        except ImportError:
-            logger.warning("pytorchvideo not available, using fallback model")
-            return self._create_fallback_model()
-    
-    def _load_i3d_model(self):
-        """Load I3D model"""
-        # Placeholder for I3D implementation
-        logger.warning("I3D model not fully implemented, using fallback")
-        return self._create_fallback_model()
-    
-    def _create_fallback_model(self):
-        """Create a simple 3D CNN fallback model"""
-        class Simple3DCNN(nn.Module):
-            def __init__(self, num_classes):
-                super().__init__()
-                self.features = nn.Sequential(
-                    nn.Conv3d(3, 64, kernel_size=(3, 3, 3), padding=1),
-                    nn.ReLU(),
-                    nn.MaxPool3d(kernel_size=(1, 2, 2)),
-                    
-                    nn.Conv3d(64, 128, kernel_size=(3, 3, 3), padding=1),
-                    nn.ReLU(),
-                    nn.MaxPool3d(kernel_size=(2, 2, 2)),
-                    
-                    nn.Conv3d(128, 256, kernel_size=(3, 3, 3), padding=1),
-                    nn.ReLU(),
-                    nn.MaxPool3d(kernel_size=(2, 2, 2)),
-                )
-                
-                self.classifier = nn.Sequential(
-                    nn.AdaptiveAvgPool3d((1, 1, 1)),
-                    nn.Flatten(),
-                    nn.Linear(256, 128),
-                    nn.ReLU(),
-                    nn.Dropout(0.5),
-                    nn.Linear(128, num_classes)
-                )
+            mag, _ = cv2.cartToPolar(flow[..., 0], flow[..., 1])
+            h, w   = frame_gray.shape
+            mask   = np.zeros((h, w), dtype=np.uint8)
+            for p in persons:
+                x1, y1, x2, y2 = [int(v) for v in p['bbox']]
+                mask[max(y1,0):min(y2,h), max(x1,0):min(x2,w)] = 1
+            person_mag = mag[mask == 1]
+            if person_mag.size == 0:
+                return 0.0
+            return min(float(np.mean(person_mag)) / 15.0, 1.0)
+        except Exception:
+            return 0.0
 
-            def forward(self, x):
-                x = self.features(x)
-                x = self.classifier(x)
-                return x
-
-        model = Simple3DCNN(num_classes=len(self.threat_classes) + 1)
-
-        if self.model_path:
-            checkpoint = torch.load(self.model_path, map_location=self.device)
-            model.load_state_dict(checkpoint['model_state_dict'])
-
-        model = model.to(self.device)
-        model.eval()
-
-        return model
-
-    def preprocess_frame(self, frame: np.ndarray, size: Tuple[int, int] = (224, 224)) -> np.ndarray:
-        """
-        Preprocess a single frame
-
-        Args:
-            frame: Input frame (BGR)
-            size: Target size (height, width)
-
-        Returns:
-            Preprocessed frame
-        """
-        # Resize
-        frame = cv2.resize(frame, size)
-
-        # Convert BGR to RGB
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        # Normalize to [0, 1]
-        frame = frame.astype(np.float32) / 255.0
-
-        # Normalize with ImageNet stats
-        mean = np.array([0.485, 0.456, 0.406])
-        std = np.array([0.229, 0.224, 0.225])
-        frame = (frame - mean) / std
-
-        return frame
-
-    def add_frame(self, frame: np.ndarray):
-        """Add a frame to the buffer"""
-        preprocessed = self.preprocess_frame(frame)
-        self.frame_buffer.append(preprocessed)
+    # -----------------------------------------------------------------------
+    # Core detection
+    # -----------------------------------------------------------------------
 
     def detect(self, frame: Optional[np.ndarray] = None) -> Dict:
         """
-        Detect threats in current frame buffer
+        Analyse one frame and return threat assessment.
 
         Args:
-            frame: Optional new frame to add before detection
+            frame: BGR image array (H x W x 3)
 
         Returns:
-            Detection result containing:
-                - is_threat: bool
-                - threat_type: str or None
-                - confidence: float
-                - all_scores: dict of all class scores
-        """
-        if frame is not None:
-            self.add_frame(frame)
-
-        # Need full buffer for detection
-        buffer_size = len(self.frame_buffer)
-        if buffer_size < self.clip_length:
-            logger.debug(f"Buffer not full: {buffer_size}/{self.clip_length} frames")
-            return {
-                'is_threat': False,
-                'threat_type': None,
-                'confidence': 0.0,
-                'all_scores': {},
-                'status': 'buffering',
-                'buffer_size': buffer_size,
-                'required_size': self.clip_length
+            {
+              'is_threat': bool,
+              'threat_type': str or None,
+              'confidence': float,
+              'all_scores': dict,
+              'status': str,
+              'people_count': int,
             }
+        """
+        _SAFE = {
+            'is_threat': False, 'threat_type': None,
+            'confidence': 0.0,  'all_scores': {}, 'status': 'ok', 'people_count': 0,
+        }
+        if frame is None:
+            _SAFE['status'] = 'no_frame'
+            return _SAFE
+        if self.pose_model is None:
+            _SAFE['status'] = 'model_unavailable'
+            return _SAFE
 
         try:
-            # Prepare input tensor
-            # Shape: (batch, channels, time, height, width)
-            frames = np.stack(list(self.frame_buffer), axis=0)  # (T, H, W, C)
-            frames = np.transpose(frames, (3, 0, 1, 2))  # (C, T, H, W)
-            frames = np.expand_dims(frames, axis=0)  # (1, C, T, H, W)
+            frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            # Convert to tensor
-            frames_tensor = torch.from_numpy(frames).float().to(self.device)
+            # Pose estimation (persons only — COCO class 0)
+            results = self.pose_model(frame, verbose=False, classes=[0])
+            persons = self._extract_persons(results)
 
-            # Run inference
-            with torch.no_grad():
-                if self.model_type == "slowfast":
-                    # SlowFast requires two pathways with specific temporal sampling
-                    # Slow pathway: sample every 8th frame (low temporal resolution)
-                    # Fast pathway: sample every 2nd frame (high temporal resolution)
-                    # This creates the typical 1:4 ratio (fast:slow)
+            # Individual heuristic scores
+            s_prox   = self._score_proximity(persons)
+            s_arm    = self._score_arm_raise(persons)
+            s_fall   = self._score_fall(persons)
+            s_motion = self._score_motion(frame_gray, persons)
 
-                    # Ensure we have enough frames
-                    if frames_tensor.shape[2] < 8:
-                        logger.warning(f"Not enough frames for SlowFast: {frames_tensor.shape[2]}")
-                        raise ValueError(f"Insufficient frames for SlowFast model: {frames_tensor.shape[2]}")
+            # Weighted blend
+            blended = (0.35 * s_prox + 0.25 * s_motion + 0.20 * s_arm + 0.20 * s_fall)
 
-                    # Create slow pathway (every 8th frame)
-                    slow_pathway = frames_tensor[:, :, ::8, :, :]  # e.g., 32 frames -> 4 frames
+            # Boost when proximity + motion both fire (most likely a fight)
+            if s_prox > 0.3 and s_motion > 0.3:
+                blended = min(blended * 1.4, 1.0)
 
-                    # Create fast pathway (every 2nd frame)
-                    fast_pathway = frames_tensor[:, :, ::2, :, :]  # e.g., 32 frames -> 16 frames
+            # Temporal smoothing
+            self._score_history.append(blended)
+            smoothed = float(np.mean(self._score_history))
 
-                    logger.debug(f"SlowFast pathways - Slow: {slow_pathway.shape}, Fast: {fast_pathway.shape}")
+            # Update previous frame for next optical-flow call
+            self._prev_gray = frame_gray
 
-                    outputs = self.model([slow_pathway, fast_pathway])
+            # Classify threat type
+            threat_type = None
+            if smoothed >= self.confidence_threshold:
+                if s_fall > 0.5:
+                    threat_type = "fall_detected"
+                elif s_prox > 0.3 and s_motion > 0.3:
+                    threat_type = "fighting"
+                elif s_arm > 0.4:
+                    threat_type = "aggressive_behavior"
                 else:
-                    outputs = self.model(frames_tensor)
+                    threat_type = "pushing"
 
-                # Get probabilities
-                probs = torch.softmax(outputs, dim=1)[0]
-                probs = probs.cpu().numpy()
-
-            # Get all class scores
-            all_classes = self.threat_classes + [self.normal_class]
-            all_scores = {cls: float(probs[i]) for i, cls in enumerate(all_classes)}
-
-            # Find highest threat score
-            max_threat_idx = -1
-            max_threat_score = 0.0
-
-            for i, threat_class in enumerate(self.threat_classes):
-                if probs[i] > max_threat_score:
-                    max_threat_score = probs[i]
-                    max_threat_idx = i
-
-            # Determine if threat detected
-            is_threat = max_threat_score >= self.confidence_threshold
-            threat_type = self.threat_classes[max_threat_idx] if is_threat else None
-
-            return {
-                'is_threat': is_threat,
-                'threat_type': threat_type,
-                'confidence': float(max_threat_score),
-                'all_scores': all_scores,
-                'status': 'detected' if is_threat else 'normal'
+            all_scores = {
+                "proximity": round(s_prox, 3),
+                "arm_raise": round(s_arm,  3),
+                "motion":    round(s_motion, 3),
+                "fall":      round(s_fall, 3),
+                "blended":   round(blended, 3),
+                "smoothed":  round(smoothed, 3),
             }
 
-        except Exception as e:
-            logger.error(f"Error in threat detection: {e}")
             return {
-                'is_threat': False,
-                'threat_type': None,
-                'confidence': 0.0,
-                'all_scores': {},
-                'status': 'error',
-                'error': str(e)
+                'is_threat':    smoothed >= self.confidence_threshold,
+                'threat_type':  threat_type,
+                'confidence':   round(smoothed, 4),
+                'all_scores':   all_scores,
+                'status':       'threat' if smoothed >= self.confidence_threshold else 'normal',
+                'people_count': len(persons),
             }
+
+        except Exception as exc:
+            logger.error(f"ThreatDetector.detect error: {exc}")
+            _SAFE['status'] = 'error'
+            _SAFE['error']  = str(exc)
+            return _SAFE
+
+    # -----------------------------------------------------------------------
+    # API-compatibility helpers
+    # -----------------------------------------------------------------------
+
+    def add_frame(self, frame: np.ndarray):
+        """Buffer a frame (API compat — actual detection happens in detect())."""
+        self.frame_buffer.append(frame)
 
     def reset_buffer(self):
-        """Clear the frame buffer"""
+        """Clear all buffers."""
         self.frame_buffer.clear()
+        self._score_history.clear()
+        self._prev_gray = None
 
-    def visualize_result(
-        self,
-        frame: np.ndarray,
-        result: Dict
-    ) -> np.ndarray:
-        """
-        Draw detection result on frame
+    def preprocess_frame(self, frame: np.ndarray, size=(224, 224)) -> np.ndarray:
+        """Kept for API compatibility."""
+        return cv2.resize(frame, size)
 
-        Args:
-            frame: Input frame
-            result: Detection result from detect()
+    def visualize_result(self, frame: np.ndarray, result: Dict) -> np.ndarray:
+        """Draw threat status overlay on frame."""
+        annotated   = frame.copy()
+        h, w        = annotated.shape[:2]
+        is_threat   = result.get('is_threat', False)
+        color       = (0, 0, 255) if is_threat else (0, 180, 0)
 
-        Returns:
-            Annotated frame
-        """
-        annotated = frame.copy()
-        h, w = annotated.shape[:2]
+        cv2.rectangle(annotated, (0, 0), (w, 90), color, -1)
 
-        # Determine color and text
-        if result['is_threat']:
-            color = (0, 0, 255)  # Red for threat
-            status_text = f"THREAT: {result['threat_type']}"
-            conf_text = f"Confidence: {result['confidence']:.2%}"
-        else:
-            color = (0, 255, 0)  # Green for normal
-            status_text = "NORMAL"
-            conf_text = f"Confidence: {result['confidence']:.2%}"
+        status_text = f"THREAT: {result.get('threat_type','?').upper()}" if is_threat else "NORMAL"
+        cv2.putText(annotated, status_text,
+                    (10, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+        cv2.putText(annotated, f"Confidence: {result.get('confidence', 0):.2%}",
+                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+        cv2.putText(annotated, f"People: {result.get('people_count', 0)}",
+                    (10, 83), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1)
 
-        # Draw status banner
-        cv2.rectangle(annotated, (0, 0), (w, 80), color, -1)
-
-        # Draw text
-        cv2.putText(
-            annotated, status_text, (10, 35),
-            cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2
-        )
-        cv2.putText(
-            annotated, conf_text, (10, 65),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
-        )
+        scores = result.get('all_scores', {})
+        y = 110
+        for k, v in scores.items():
+            cv2.putText(annotated, f"{k}: {v:.3f}", (10, y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (200, 255, 200), 1)
+            y += 18
 
         return annotated
-
-
-if __name__ == "__main__":
-    # Example usage
-    detector = ThreatDetector(
-        model_type="slowfast",
-        confidence_threshold=0.7,
-        clip_length=32
-    )
-
-    # Simulate video stream
-    cap = cv2.VideoCapture(0)  # Use webcam
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        # Detect threats
-        result = detector.detect(frame)
-
-        # Visualize
-        annotated = detector.visualize_result(frame, result)
-        cv2.imshow("Threat Detection", annotated)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
 
 
