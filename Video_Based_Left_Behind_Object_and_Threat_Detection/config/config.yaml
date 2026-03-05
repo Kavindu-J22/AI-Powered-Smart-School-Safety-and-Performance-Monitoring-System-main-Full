@@ -81,7 +81,8 @@ object_detection:
     # Secondary COCO model for items not in custom model (book, cell phone, keyboard…)
     secondary_weights: "yolov8s.pt"
     input_size: [640, 640]
-    confidence_threshold: 0.20  # Lowered for better small-object detection (pens, books)
+    confidence_threshold: 0.40        # Professional standard — reduces false positives
+    secondary_confidence_threshold: 0.40  # Same bar for COCO model
     iou_threshold: 0.45
 
   # Classes to detect — includes BOTH custom-model names AND COCO names.
@@ -117,7 +118,7 @@ object_detection:
     - "remote"         # TV remote
     - "scissors"       # Scissors
     - "clock"          # Clock / Watch
-    - "toothbrush"     # Pen-like small object (closest COCO proxy)
+    # toothbrush removed — too many false positives on faces/noses
     - "teddy bear"     # Soft toys
     - "Umbrella"       # Umbrella (capitalized, matches COCO alias)
 
@@ -125,7 +126,7 @@ object_detection:
   left_behind_threshold: 60
 
   # Minimum object size (pixels²) — kept low for small items like pens
-  min_object_size: 150  # Reduced further for very small objects like pens
+  min_object_size: 800  # Professional minimum — filters out tiny noise blobs
 
 # Threat Detection Configuration
 threat_detection:

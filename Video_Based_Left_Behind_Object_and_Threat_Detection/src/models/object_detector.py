@@ -353,6 +353,167 @@ class LeftBehindObjectDetector:
                 merged.append(sec)
         return merged
 
+    # ── Tiled inference helpers ────────────────────────────────────────────
+
+    def _nms_detections(
+        self,
+        detections: List[Dict],
+        iou_threshold: float = 0.45,
+    ) -> List[Dict]:
+        """
+        Pure-Python NMS across a mixed list of detection dicts.
+        Keeps the highest-confidence box when two boxes overlap >= iou_threshold.
+        """
+        if not detections:
+            return []
+        # Sort descending by confidence
+        dets = sorted(detections, key=lambda d: d['confidence'], reverse=True)
+        keep: List[Dict] = []
+        for candidate in dets:
+            suppress = False
+            for kept in keep:
+                if self._calculate_iou(candidate['bbox'], kept['bbox']) >= iou_threshold:
+                    suppress = True
+                    break
+            if not suppress:
+                keep.append(candidate)
+        return keep
+
+    def _run_primary_tiled(
+        self,
+        frame: np.ndarray,
+        filter_classes: bool = True,
+        include_unknown: bool = True,
+    ) -> List[Dict]:
+        """
+        Run the primary model on overlapping 2x2 tiles of the frame.
+
+        Tiles use a higher confidence bar (primary_conf + 0.05) to compensate
+        for the zoomed-in view making weak textures look more object-like.
+        Only genuinely strong small-object detections survive.
+        """
+        h, w = frame.shape[:2]
+        # Tile confidence is higher so only sharp small detections pass
+        tile_conf = min(self.confidence_threshold + 0.05, 0.85)
+
+        tw = max(int(w * 0.60), 1)
+        th = max(int(h * 0.60), 1)
+        step_x = max(int(w * 0.40), 1)
+        step_y = max(int(h * 0.40), 1)
+
+        all_dets: List[Dict] = []
+
+        for row in range(2):
+            for col in range(2):
+                x1 = min(col * step_x, w - tw)
+                y1 = min(row * step_y, h - th)
+                x2 = x1 + tw
+                y2 = y1 + th
+
+                tile = frame[y1:y2, x1:x2]
+                tile_dets = self._run_model(
+                    self.model,
+                    self.class_names,
+                    self.target_class_indices,
+                    tile,
+                    source_label="custom_tiled",
+                    filter_classes=filter_classes,
+                    include_unknown=include_unknown,
+                    conf=tile_conf,
+                )
+                # Translate bboxes back to full-frame coordinates
+                for det in tile_dets:
+                    bx1, by1, bx2, by2 = det['bbox']
+                    det['bbox'] = [bx1 + x1, by1 + y1, bx2 + x1, by2 + y1]
+                all_dets.extend(tile_dets)
+
+        return self._nms_detections(all_dets, iou_threshold=self.iou_threshold)
+
+    # ── Quality filters ────────────────────────────────────────────────────
+
+    # Classes where the detected object must be taller than wide.
+    # Faces / heads are roughly square, so this rejects spurious detections.
+    _PORTRAIT_CLASSES = {
+        "Water Bottle", "Bottle", "water bottle", "bottle",
+        "Umbrella", "umbrella",
+    }
+
+    def _apply_shape_filter(self, detections: List[Dict]) -> List[Dict]:
+        """
+        Reject detections whose bounding-box shape is physically impossible
+        for the claimed class.
+
+        Rule — tall/narrow classes (bottle, umbrella):
+          The box must be at least as tall as it is wide (h/w >= 1.0).
+          A human face is roughly square (h/w ≈ 1.1) but the box typically
+          includes neck/shoulders when detected via the full-body, while a
+          pure face crop near a bottle will be clearly wider than tall —
+          both cases are caught by this guard.
+        """
+        filtered: List[Dict] = []
+        for det in detections:
+            name = det.get('class_name', '')
+            if name in self._PORTRAIT_CLASSES:
+                x1, y1, x2, y2 = det['bbox']
+                bw = max(x2 - x1, 1)
+                bh = max(y2 - y1, 1)
+                aspect = bh / bw  # > 1 means taller than wide
+                if aspect < 0.90:
+                    logger.debug(
+                        f"Shape filter dropped '{name}' (h/w={aspect:.2f}): {det['bbox']}"
+                    )
+                    continue
+            filtered.append(det)
+        return filtered
+
+    def _suppress_person_overlap(self, detections: List[Dict]) -> List[Dict]:
+        """
+        Remove object detections that lie significantly inside a person's
+        bounding box — this is the primary guard against faces, heads or
+        hands being misclassified as objects (e.g. face → water bottle).
+
+        Logic
+        -----
+        For every non-person detection, compute how much of its area is
+        contained inside any person bbox.  If the containment fraction
+        exceeds 45 %, the detection is suppressed.  Person detections
+        themselves are always kept (so the tracker can use them).
+        """
+        person_boxes = [
+            d['bbox'] for d in detections
+            if d.get('class_name', '').lower() == 'person'
+        ]
+        if not person_boxes:
+            return detections  # No people → nothing to suppress
+
+        kept: List[Dict] = []
+        for det in detections:
+            if det.get('class_name', '').lower() == 'person':
+                kept.append(det)
+                continue
+
+            dx1, dy1, dx2, dy2 = det['bbox']
+            det_area = max((dx2 - dx1) * (dy2 - dy1), 1)
+            suppressed = False
+
+            for pb in person_boxes:
+                ix1 = max(dx1, pb[0]);  iy1 = max(dy1, pb[1])
+                ix2 = min(dx2, pb[2]);  iy2 = min(dy2, pb[3])
+                if ix2 <= ix1 or iy2 <= iy1:
+                    continue
+                containment = (ix2 - ix1) * (iy2 - iy1) / det_area
+                if containment >= 0.45:
+                    logger.debug(
+                        f"Person-overlap suppressed '{det['class_name']}' "
+                        f"(containment={containment:.2f}): {det['bbox']}"
+                    )
+                    suppressed = True
+                    break
+
+            if not suppressed:
+                kept.append(det)
+        return kept
+
     # ── Public detection API ───────────────────────────────────────────────
 
     def detect(
@@ -378,15 +539,24 @@ class LeftBehindObjectDetector:
         """
         proc = self._preprocess_frame(frame) if enhance_frame else frame
 
-        # Run primary (custom) model
-        primary_dets = self._run_model(
+        # ── Primary model: tiled + full-frame fusion ───────────────────────
+        # Tiled inference catches small objects (Pen, eraser) that are too
+        # tiny in the full 640x640 view.  Full-frame run catches large objects
+        # that might be clipped by tile edges.
+        tiled_dets = self._run_primary_tiled(
+            proc, filter_classes=filter_classes, include_unknown=include_unknown
+        )
+        full_dets = self._run_model(
             self.model, self.class_names, self.target_class_indices,
             proc, source_label="custom", filter_classes=filter_classes,
             include_unknown=include_unknown,
         )
+        # Merge full-frame results into tiled, then NMS the combined set
+        combined_primary = self._nms_detections(
+            tiled_dets + full_dets, iou_threshold=self.iou_threshold
+        )
 
-        # Run secondary (COCO) model if available — use higher confidence to
-        # cut false positives from the larger, more general model.
+        # ── Secondary model (COCO yolov8s) ────────────────────────────────
         secondary_dets: List[Dict] = []
         if self.secondary_model is not None:
             secondary_dets = self._run_model(
@@ -397,7 +567,16 @@ class LeftBehindObjectDetector:
                 conf=self.secondary_confidence_threshold,
             )
 
-        return self._merge_detections(primary_dets, secondary_dets)
+        merged = self._merge_detections(combined_primary, secondary_dets)
+
+        # ── Quality gates ──────────────────────────────────────────────────
+        # 1. Remove objects that are significantly inside a person bounding box
+        #    (prevents face/hand being labelled as bottle, phone, etc.)
+        merged = self._suppress_person_overlap(merged)
+        # 2. Reject bottle/umbrella boxes with wrong aspect ratio (too wide)
+        merged = self._apply_shape_filter(merged)
+
+        return merged
     
     def detect_batch(
         self,

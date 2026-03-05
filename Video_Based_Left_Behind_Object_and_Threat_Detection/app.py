@@ -80,12 +80,17 @@ def initialize_models():
         else:
             logger.info(f"Secondary (COCO) model: {secondary_weights}")
 
+        secondary_conf = config['object_detection']['model'].get(
+            'secondary_confidence_threshold', None
+        )
+
         try:
             object_detector = LeftBehindObjectDetector(
                 model_path=obj_weights,
                 confidence_threshold=config['object_detection']['model']['confidence_threshold'],
                 target_classes=config['object_detection']['target_classes'],
                 secondary_model_path=secondary_weights,
+                secondary_confidence_threshold=secondary_conf,
             )
         except Exception as inner_e:
             logger.error(f"Failed to initialize LeftBehindObjectDetector: {inner_e}")
