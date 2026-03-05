@@ -26,6 +26,7 @@ export default defineConfig({
                 "resources/css/admin/settings.css",
                 "resources/css/admin/audio-threat.css",
                 "resources/css/admin/video-threat.css",
+                "resources/css/admin/audio-video-threat.css",
 
                 // Authentication CSS files
                 "resources/css/auth/login.css",
@@ -41,6 +42,7 @@ export default defineConfig({
                 "resources/js/admin/notifications.js",
                 "resources/js/admin/audio-threat.js",
                 "resources/js/admin/video-threat.js",
+                "resources/js/admin/audio-video-threat.js",
 
                 // Student JavaScript files
                 "resources/js/student/homework-attempt.js",

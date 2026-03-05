@@ -1,0 +1,127 @@
+/* =====================================================
+   Audio & Video Threat Detection — Combined Dashboard
+   ===================================================== */
+
+/* ---------- Audio Visualizer ---------- */
+.audio-visualizer-container {
+    background: #0d1117;
+    border-radius: 8px;
+    overflow: hidden;
+    min-height: 100px;
+}
+
+#audioVisualizer {
+    display: block;
+}
+
+/* ---------- Video Container ---------- */
+.video-container {
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    min-height: 240px;
+}
+
+#videoElement,
+#esp32Stream {
+    display: block;
+    max-height: 300px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.detection-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    border-radius: 8px;
+}
+
+/* ---------- No-video placeholder ---------- */
+.no-video-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #6c757d;
+    text-align: center;
+}
+
+/* ---------- Critical Alert Banner ---------- */
+.alert-critical {
+    background: linear-gradient(135deg, #ff0000 0%, #b00020 100%);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    animation: criticalPulse 1.5s ease-in-out infinite;
+}
+
+.alert-critical .critical-icon {
+    font-size: 36px;
+    animation: iconShake 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes criticalPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.5); }
+    50%       { box-shadow: 0 0 20px 8px rgba(255, 0, 0, 0.3); }
+}
+
+@keyframes iconShake {
+    from { transform: rotate(-10deg); }
+    to   { transform: rotate(10deg); }
+}
+
+/* ---------- Alert Items in Feed ---------- */
+.alert-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border-left: 4px solid transparent;
+    font-size: 0.82rem;
+}
+
+.alert-item.audio-threat   { background: #fff3cd; border-left-color: #ffc107; }
+.alert-item.video-threat   { background: #f8d7da; border-left-color: #dc3545; }
+.alert-item.combined-threat {
+    background: linear-gradient(135deg, #ff4b4b22 0%, #ff00ff11 100%);
+    border-left-color: #dc3545;
+    border-left-width: 6px;
+    font-weight: 600;
+}
+
+/* ---------- Severity badges ---------- */
+.badge-critical { background-color: #dc3545 !important; color: #fff; }
+.badge-high     { background-color: #fd7e14 !important; color: #fff; }
+.badge-medium   { background-color: #ffc107 !important; color: #000; }
+.badge-low      { background-color: #198754 !important; color: #fff; }
+
+/* ---------- Critical modal pulse icon ---------- */
+.critical-pulse-icon {
+    display: inline-block;
+    animation: iconBounce 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes iconBounce {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-8px); }
+}
+
+/* ---------- History table severity colours ---------- */
+.severity-critical { color: #dc3545; font-weight: 700; }
+.severity-high     { color: #fd7e14; font-weight: 600; }
+.severity-medium   { color: #ffc107; font-weight: 500; }
+.severity-low      { color: #198754; }
+
+/* ---------- ESP32-CAM label ---------- */
+#esp32IpInput { font-family: monospace; }
+
+/* ---------- Responsive tweaks ---------- */
+@media (max-width: 768px) {
+    .video-container { min-height: 180px; }
+    #videoElement,
+    #esp32Stream     { max-height: 220px; }
+}
+

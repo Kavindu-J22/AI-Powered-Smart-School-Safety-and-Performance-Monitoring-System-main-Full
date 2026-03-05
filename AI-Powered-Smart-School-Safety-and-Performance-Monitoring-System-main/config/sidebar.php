@@ -36,6 +36,7 @@ return [
         'items' => [
             getSideBarElement('mic', 'Audio Threat Detection', 'admin.management.audio-threat.dashboard'),
             getSideBarElement('videocam', 'Video Threat Detection', 'admin.management.video-threat.dashboard'),
+            getSideBarElement('sensors', 'Audio & Video Threat Detection', 'admin.management.audio-video-threat.dashboard'),
             getSideBarElement('person_add', 'Visitors', 'admin.security.visitors.index'),
             getSideBarElement('report_problem', 'Incidents', 'admin.security.incidents.index'),
         ],

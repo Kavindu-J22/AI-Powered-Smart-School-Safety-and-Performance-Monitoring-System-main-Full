@@ -125,6 +125,19 @@ Route::middleware(['auth'])->group(function () {
                 Route::post('/process-frame', 'processFrame')->name('process-frame');
             });
 
+            // Audio & Video Combined Threat Detection
+            Route::prefix('audio-video-threat')->name('audio-video-threat.')->controller(\App\Http\Controllers\Admin\Management\AudioVideoThreatController::class)->group(function () {
+                Route::get('/', 'dashboard')->name('dashboard');
+                Route::get('/audio-status', 'audioStatus')->name('audio-status');
+                Route::get('/video-status', 'videoStatus')->name('video-status');
+                Route::post('/analyze-audio', 'analyzeAudio')->name('analyze-audio');
+                Route::post('/calibrate-audio', 'calibrateAudio')->name('calibrate-audio');
+                Route::post('/start-audio-session', 'startAudioSession')->name('start-audio-session');
+                Route::post('/stop-audio-session', 'stopAudioSession')->name('stop-audio-session');
+                Route::post('/process-frame', 'processFrame')->name('process-frame');
+                Route::post('/send-combined-alert', 'sendCombinedAlert')->name('send-combined-alert');
+            });
+
             // Timetables Management
             Route::prefix('timetables')->name('timetables.')->controller(TimetableController::class)->group(function () {
                 Route::get('/', 'index')->name('index');
