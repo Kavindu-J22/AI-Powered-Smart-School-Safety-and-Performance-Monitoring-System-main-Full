@@ -26,6 +26,11 @@ class PerformancePredictionController extends Controller
             // Get prediction from service
             $prediction = $this->predictionService->getPrediction($studentId);
 
+            // Propagate no_data status with 200 so the frontend can show a friendly message
+            if (isset($prediction['status']) && $prediction['status'] === 'no_data') {
+                return response()->json($prediction);
+            }
+
             // Format for display
             $formatted = $this->predictionService->formatPredictionForDisplay($prediction);
 

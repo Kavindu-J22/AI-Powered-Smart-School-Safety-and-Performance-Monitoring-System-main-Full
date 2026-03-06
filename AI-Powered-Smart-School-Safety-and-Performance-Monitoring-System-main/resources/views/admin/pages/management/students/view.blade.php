@@ -330,6 +330,9 @@
                                     <!-- Performance Prediction Section -->
                                     @include('admin.pages.management.students.partials.performance_prediction')
 
+                                    <!-- Seating Arrangement Section -->
+                                    @include('admin.pages.management.students.partials.seating_card')
+
                                 </div>
                             </div>
 

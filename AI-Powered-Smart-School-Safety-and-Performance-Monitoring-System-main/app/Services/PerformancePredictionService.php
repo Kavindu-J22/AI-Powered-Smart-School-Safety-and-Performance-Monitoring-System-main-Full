@@ -31,6 +31,14 @@ class PerformancePredictionService
         // Collect student data and marks
         $studentData = $this->buildStudentData($student);
 
+        // Guard: no marks data available for this student
+        if (empty($studentData['subjects'])) {
+            return [
+                'status'  => 'no_data',
+                'message' => 'No marks data available for this student yet. Add marks to see the AI prediction.',
+            ];
+        }
+
         // Call the prediction API
         try {
             $response = Http::timeout(30)

@@ -18,6 +18,7 @@ return [
             getSideBarElement('security', 'Security Staff', 'admin.management.security.index'),
             getSideBarElement('fact_check', 'Attendance', 'admin.management.attendance.dashboard'),
             getSideBarElement('assessment', 'Marks', 'admin.management.marks.index'),
+            getSideBarElement('chair', 'Seating Arrangement', 'admin.management.seating.index'),
         ],
     ],
     [

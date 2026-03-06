@@ -43,6 +43,7 @@ export default defineConfig({
                 "resources/js/admin/audio-threat.js",
                 "resources/js/admin/video-threat.js",
                 "resources/js/admin/audio-video-threat.js",
+                "resources/js/admin/mark-table.js",
 
                 // Student JavaScript files
                 "resources/js/student/homework-attempt.js",

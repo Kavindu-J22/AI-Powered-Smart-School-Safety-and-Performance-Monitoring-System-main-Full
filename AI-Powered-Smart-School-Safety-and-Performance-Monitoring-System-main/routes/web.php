@@ -258,6 +258,14 @@ Route::middleware(['auth'])->group(function () {
                 Route::post('/start-session', 'startSession')->name('start-session');
                 Route::post('/stop-session', 'stopSession')->name('stop-session');
             });
+
+            // Seating Arrangement (AI Powered)
+            Route::prefix('seating')->name('seating.')->controller(\App\Http\Controllers\Admin\Management\SeatingArrangementController::class)->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::get('/{grade}/{section}', 'show')->name('show');
+                Route::get('/{grade}/{section}/data', 'data')->name('data');
+                Route::post('/generate', 'generate')->name('generate');
+            });
         });
 
         // Placeholder routes for features in development

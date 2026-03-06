@@ -207,6 +207,9 @@
                     displayPrediction(data.data);
                     loadingEl.style.display = 'none';
                     contentEl.style.display = 'block';
+                } else if (data.status === 'no_data') {
+                    loadingEl.style.display = 'none';
+                    showError(data.message || 'No marks data available for this student.');
                 } else {
                     showError(data.error || 'Failed to load prediction');
                 }
