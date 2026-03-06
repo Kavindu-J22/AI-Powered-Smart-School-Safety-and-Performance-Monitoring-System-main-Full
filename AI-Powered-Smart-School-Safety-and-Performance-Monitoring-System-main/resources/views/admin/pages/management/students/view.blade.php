@@ -326,6 +326,10 @@
                                             </div>
                                         </div>
                                     @endif
+
+                                    <!-- Performance Prediction Section -->
+                                    @include('admin.pages.management.students.partials.performance_prediction')
+
                                 </div>
                             </div>
 

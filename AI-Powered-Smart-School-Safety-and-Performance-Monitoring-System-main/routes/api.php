@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AttendanceApiController;
+use App\Http\Controllers\Api\PerformancePredictionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,7 +43,7 @@ Route::prefix('attendance')->name('api.attendance.')->group(function () {
 });
 
 // Protected API routes (require authentication)
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth')->group(function () {
     // Attendance management
     Route::prefix('attendance')->name('api.attendance.')->controller(AttendanceApiController::class)->group(function () {
         Route::get('/today', 'getTodayAttendance')->name('today');
@@ -50,4 +51,22 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/report', 'getReport')->name('report');
         Route::get('/student/{studentId}', 'getStudentAttendance')->name('student');
     });
+
+    // Performance Prediction (AI Model)
+    Route::prefix('prediction')->name('api.prediction.')->controller(PerformancePredictionController::class)->group(function () {
+        Route::get('/health', 'health')->name('health');
+        Route::post('/batch', 'batchPredictions')->name('batch');
+    });
+
+    // Student prediction endpoints with flexible authentication (session + API tokens)
+    Route::prefix('students')->name('api.students.')->group(function () {
+        Route::get('{studentId}/prediction', [PerformancePredictionController::class, 'getPrediction'])
+            ->name('prediction');
+    });
 });
+
+// Public prediction endpoint for authenticated dashboard users (session-based auth)
+Route::get('/students/{studentId}/prediction', [PerformancePredictionController::class, 'getPrediction'])
+    ->middleware(['auth', 'web'])
+    ->withoutMiddleware('api')
+    ->name('api.students.prediction.public');
