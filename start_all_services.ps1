@@ -27,9 +27,27 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$homeworkPath
 Start-Sleep -Seconds 2
 
 # Start Audio Threat Detection API
-Write-Host "3. Starting Audio Threat Detection API (Port 5002)..." -ForegroundColor White
+Write-Host "3. Starting Audio Threat Detection API (Port 5005)..." -ForegroundColor White
 $audioPath = Join-Path $scriptDir "Audio-Based_Threat_Detection"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$audioPath'; Write-Host '🔊 Audio Threat Detection API' -ForegroundColor Cyan; Write-Host 'Port: 5002' -ForegroundColor Green; Write-Host ''; python app.py"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$audioPath'; Write-Host '🔊 Audio Threat Detection API' -ForegroundColor Cyan; Write-Host 'Port: 5005' -ForegroundColor Green; Write-Host ''; `$env:FLASK_PORT=5005; python app.py"
+Start-Sleep -Seconds 2
+
+# Start Student Performance Prediction API
+Write-Host "4. Starting Student Performance Prediction API (Port 5002)..." -ForegroundColor White
+$performancePath = Join-Path $scriptDir "student-performance-prediction-model"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$performancePath'; Write-Host '📊 Student Performance Prediction API' -ForegroundColor Cyan; Write-Host 'Port: 5002' -ForegroundColor Green; Write-Host ''; python api/app.py"
+Start-Sleep -Seconds 2
+
+# Start Student Seating Arrangement API
+Write-Host "5. Starting Student Seating Arrangement API (Port 5003)..." -ForegroundColor White
+$seatingPath = Join-Path $scriptDir "student-seating-arrangement-model"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$seatingPath'; Write-Host '🎓 Student Seating Arrangement API' -ForegroundColor Cyan; Write-Host 'Port: 5003' -ForegroundColor Green; Write-Host ''; python api/app.py"
+Start-Sleep -Seconds 2
+
+# Start Facial Recognition Attendance API
+Write-Host "6. Starting Facial Recognition Attendance API (Port 5004)..." -ForegroundColor White
+$facialPath = Join-Path $scriptDir "Facial Recognition Attendance Systems"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$facialPath'; Write-Host '👤 Facial Recognition Attendance API' -ForegroundColor Cyan; Write-Host 'Port: 5004' -ForegroundColor Green; Write-Host ''; python app.py"
 Start-Sleep -Seconds 2
 
 Write-Host ""
@@ -58,10 +76,34 @@ try {
 
 # Check Audio API
 try {
-    $r3 = Invoke-WebRequest -Uri "http://127.0.0.1:5002/api/audio/health" -UseBasicParsing -TimeoutSec 5 | ConvertFrom-Json
-    Write-Host "  ✓ Audio API (Port 5002): $($r3.status)" -ForegroundColor Green
+    $r3 = Invoke-WebRequest -Uri "http://127.0.0.1:5005/api/audio/health" -UseBasicParsing -TimeoutSec 5 | ConvertFrom-Json
+    Write-Host "  ✓ Audio API (Port 5005): $($r3.status)" -ForegroundColor Green
 } catch {
-    Write-Host "  ✗ Audio API (Port 5002): NOT RESPONDING" -ForegroundColor Red
+    Write-Host "  ✗ Audio API (Port 5005): NOT RESPONDING" -ForegroundColor Red
+}
+
+# Check Performance Prediction API
+try {
+    $r4 = Invoke-WebRequest -Uri "http://127.0.0.1:5002/api/health" -UseBasicParsing -TimeoutSec 5 | ConvertFrom-Json
+    Write-Host "  ✓ Performance Prediction API (Port 5002): $($r4.status)" -ForegroundColor Green
+} catch {
+    Write-Host "  ✗ Performance Prediction API (Port 5002): NOT RESPONDING" -ForegroundColor Red
+}
+
+# Check Seating Arrangement API
+try {
+    $r5 = Invoke-WebRequest -Uri "http://127.0.0.1:5003/api/health" -UseBasicParsing -TimeoutSec 5 | ConvertFrom-Json
+    Write-Host "  ✓ Seating Arrangement API (Port 5003): $($r5.status)" -ForegroundColor Green
+} catch {
+    Write-Host "  ✗ Seating Arrangement API (Port 5003): NOT RESPONDING" -ForegroundColor Red
+}
+
+# Check Facial Recognition API
+try {
+    $r6 = Invoke-WebRequest -Uri "http://127.0.0.1:5004/api/health" -UseBasicParsing -TimeoutSec 5 | ConvertFrom-Json
+    Write-Host "  ✓ Facial Recognition API (Port 5004): $($r6.status)" -ForegroundColor Green
+} catch {
+    Write-Host "  ✗ Facial Recognition API (Port 5004): NOT RESPONDING" -ForegroundColor Red
 }
 
 Write-Host ""
@@ -71,14 +113,20 @@ Write-Host "╚═════════════════════�
 Write-Host ""
 
 Write-Host "🌐 Service URLs:" -ForegroundColor Yellow
-Write-Host "   • Laravel App:    http://127.0.0.1:8000" -ForegroundColor Cyan
-Write-Host "   • Homework API:   http://127.0.0.1:5001" -ForegroundColor Cyan
-Write-Host "   • Audio API:      http://127.0.0.1:5002" -ForegroundColor Cyan
+Write-Host "   • Laravel App:              http://127.0.0.1:8000" -ForegroundColor Cyan
+Write-Host "   • Homework API:             http://127.0.0.1:5001" -ForegroundColor Cyan
+Write-Host "   • Audio Threat API:         http://127.0.0.1:5005" -ForegroundColor Cyan
+Write-Host "   • Performance Prediction:   http://127.0.0.1:5002" -ForegroundColor Cyan
+Write-Host "   • Seating Arrangement:      http://127.0.0.1:5003" -ForegroundColor Cyan
+Write-Host "   • Facial Recognition:       http://127.0.0.1:5004" -ForegroundColor Cyan
 Write-Host ""
 
 Write-Host "📝 Health Check URLs:" -ForegroundColor Yellow
-Write-Host "   • Homework API:   http://127.0.0.1:5001/api/health" -ForegroundColor Cyan
-Write-Host "   • Audio API:      http://127.0.0.1:5002/api/audio/health" -ForegroundColor Cyan
+Write-Host "   • Homework API:             http://127.0.0.1:5001/api/health" -ForegroundColor Cyan
+Write-Host "   • Audio Threat API:         http://127.0.0.1:5005/api/audio/health" -ForegroundColor Cyan
+Write-Host "   • Performance Prediction:   http://127.0.0.1:5002/api/health" -ForegroundColor Cyan
+Write-Host "   • Seating Arrangement:      http://127.0.0.1:5003/api/health" -ForegroundColor Cyan
+Write-Host "   • Facial Recognition:       http://127.0.0.1:5004/api/health" -ForegroundColor Cyan
 Write-Host ""
 
 Write-Host "🌐 Opening Laravel application in browser..." -ForegroundColor Yellow

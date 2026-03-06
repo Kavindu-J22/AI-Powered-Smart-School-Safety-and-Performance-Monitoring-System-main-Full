@@ -102,10 +102,34 @@ try {
 
 # Verify Audio API
 try {
-    $r3 = Invoke-WebRequest -Uri "http://127.0.0.1:5002/api/audio/health" -UseBasicParsing -TimeoutSec 2
-    Write-Host "  ⚠️  Audio API (Port 5002): Still responding" -ForegroundColor Yellow
+    $r3 = Invoke-WebRequest -Uri "http://127.0.0.1:5005/api/audio/health" -UseBasicParsing -TimeoutSec 2
+    Write-Host "  ⚠️  Audio API (Port 5005): Still responding" -ForegroundColor Yellow
 } catch {
-    Write-Host "  ✓ Audio API (Port 5002): Stopped" -ForegroundColor Green
+    Write-Host "  ✓ Audio API (Port 5005): Stopped" -ForegroundColor Green
+}
+
+# Verify Performance Prediction API
+try {
+    $r4 = Invoke-WebRequest -Uri "http://127.0.0.1:5002/api/health" -UseBasicParsing -TimeoutSec 2
+    Write-Host "  ⚠️  Performance Prediction API (Port 5002): Still responding" -ForegroundColor Yellow
+} catch {
+    Write-Host "  ✓ Performance Prediction API (Port 5002): Stopped" -ForegroundColor Green
+}
+
+# Verify Seating Arrangement API
+try {
+    $r5 = Invoke-WebRequest -Uri "http://127.0.0.1:5003/api/health" -UseBasicParsing -TimeoutSec 2
+    Write-Host "  ⚠️  Seating Arrangement API (Port 5003): Still responding" -ForegroundColor Yellow
+} catch {
+    Write-Host "  ✓ Seating Arrangement API (Port 5003): Stopped" -ForegroundColor Green
+}
+
+# Verify Facial Recognition API
+try {
+    $r6 = Invoke-WebRequest -Uri "http://127.0.0.1:5004/api/health" -UseBasicParsing -TimeoutSec 2
+    Write-Host "  ⚠️  Facial Recognition API (Port 5004): Still responding" -ForegroundColor Yellow
+} catch {
+    Write-Host "  ✓ Facial Recognition API (Port 5004): Stopped" -ForegroundColor Green
 }
 
 Write-Host ""
