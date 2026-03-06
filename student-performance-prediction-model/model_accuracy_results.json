@@ -1,0 +1,59 @@
+{
+  "evaluation_date": "2026-01-11 22:33:37",
+  "model_type": "RandomForestRegressor",
+  "model_config": {
+    "n_estimators": 200,
+    "max_depth": 12
+  },
+  "encoding": "OneHotEncoder",
+  "features": {
+    "numerical": [
+      "age",
+      "grade",
+      "attendance",
+      "marks"
+    ],
+    "engineered": [
+      "attendance_score",
+      "grade_marks_ratio",
+      "risk_index"
+    ],
+    "total": 12
+  },
+  "dataset_size": 5000,
+  "test_size": 1000,
+  "metrics": {
+    "r2_score": 0.9098681799377313,
+    "adjusted_r2": 0.90877235233819,
+    "mae": 3.3500392034876887,
+    "rmse": 4.193939754412182,
+    "mape": 5.631422125427418,
+    "mse": 17.58913066363891,
+    "accuracy_within_5": 77.9,
+    "accuracy_within_10": 98.3,
+    "accuracy_within_15": 99.9,
+    "total_predictions": 1000
+  },
+  "cross_validation": {
+    "cv_r2_mean": 0.9078049305674012,
+    "cv_r2_std": 0.014045619403026914,
+    "cv_rmse_mean": 4.210736035866516,
+    "cv_rmse_std": 0.03345973207123883,
+    "cv_mae_mean": 3.392298607310822,
+    "cv_mae_std": 0.03464359354636034
+  },
+  "performance_assessment": "\ud83c\udfc6 EXCELLENT",
+  "targets_achieved": {
+    "r2_target_088": true,
+    "rmse_target_6": "True",
+    "mae_target_5": true
+  },
+  "improvements": [
+    "RandomForest (non-linear relationships)",
+    "OneHotEncoder (no ordinal bias)",
+    "Feature engineering (risk_index, attendance_score)",
+    "Stratified sampling (balanced classes)",
+    "95% Confidence intervals",
+    "5-fold cross-validation"
+  ]
+}

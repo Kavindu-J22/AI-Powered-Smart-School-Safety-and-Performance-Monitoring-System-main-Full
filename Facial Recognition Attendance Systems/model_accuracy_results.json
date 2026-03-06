@@ -1,0 +1,31 @@
+{
+  "evaluation_date": "2026-01-11 21:44:00",
+  "system": "Facial Recognition Attendance System",
+  "model_type": "FaceNet/ArcFace",
+  "recognition_threshold": 0.45,
+  "database_statistics": {
+    "total_students": 3,
+    "total_embeddings": 30
+  },
+  "accuracy_metrics": {
+    "accuracy": 83.33333333333334,
+    "true_positive_rate": 100.0,
+    "false_positive_rate": 33.33333333333333,
+    "precision": 75.00000000000001,
+    "f1_score": 85.71428571428574
+  },
+  "similarity_statistics": {
+    "intra_class_mean": 0.830517053604126,
+    "intra_class_std": 0.08887312561273575,
+    "inter_class_mean": 0.39947041869163513,
+    "inter_class_std": 0.3815959692001343
+  },
+  "overall_quality": "GOOD",
+  "recommendations": [
+    "Capture more face images per student (10+ recommended)",
+    "Optimize recognition threshold based on security needs",
+    "Retrain embeddings periodically",
+    "Enable anti-spoofing for security",
+    "Monitor performance over time"
+  ]
+}
