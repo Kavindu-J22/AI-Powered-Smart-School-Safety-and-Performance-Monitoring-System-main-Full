@@ -192,7 +192,8 @@
                                             <i class="material-symbols-rounded">warning</i>
                                             <div>
                                                 Facial Recognition mode is currently <strong>inactive</strong>.
-                                                Go to <a href="{{ route('admin.setup.settings') }}">Settings → Attendance
+                                                Go to <a href="{{ route('admin.setup.settings.index') }}">Settings →
+                                                    Attendance
                                                     System</a> to enable it.
                                             </div>
                                         </div>
@@ -869,7 +870,8 @@
                         });
                         document.getElementById('faceAttendVideo').srcObject = _stream;
                     } catch (_) {
-                        /* camera unavailable */ }
+                        /* camera unavailable */
+                    }
                 }
 
                 function _stopCamera() {
@@ -937,7 +939,8 @@
                             _renderResult(data.data);
                         }
                     } catch (_) {
-                        /* network blip */ }
+                        /* network blip */
+                    }
                 }
 
                 /* ── render result ── */
@@ -979,7 +982,7 @@
                     } else {
                         document.getElementById('faceErrorTitle').textContent = 'Not Recognised';
                         document.getElementById('faceErrorMsg').textContent = d.message ||
-                        'Face not found in database.';
+                            'Face not found in database.';
                         _showState('error');
                         _resetTimer = setTimeout(() => _showState('waiting'), RESET_MS);
                         return;

@@ -174,15 +174,17 @@ class RegistrationService:
                 'captured_count': session.captured_count
             }
         
-        if detection.confidence < 0.95:
+        # Lowered from 0.95 → 0.80: MTCNN rarely returns 0.95+ on webcam frames,
+        # causing nearly all captures to fail silently.
+        if detection.confidence < 0.80:
             return {
                 'success': False,
                 'message': 'Low confidence detection',
                 'captured_count': session.captured_count
             }
         
-        # Check face size (must be reasonably large)
-        if detection.width < 100 or detection.height < 100:
+        # Lowered from 100px → 60px: 100px was rejecting faces at normal webcam distance.
+        if detection.width < 60 or detection.height < 60:
             return {
                 'success': False,
                 'message': 'Face too small, move closer',
@@ -200,6 +202,14 @@ class RegistrationService:
         y2 = min(h, y2 + margin)
         
         face_crop = frame[y1:y2, x1:x2].copy()
+        
+        # Apply CLAHE to normalize lighting — ensures training images match
+        # the CLAHE-preprocessed inference images for better embedding consistency.
+        lab = cv2.cvtColor(face_crop, cv2.COLOR_BGR2LAB)
+        l_ch, a_ch, b_ch = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(4, 4))
+        l_ch = clahe.apply(l_ch)
+        face_crop = cv2.cvtColor(cv2.merge([l_ch, a_ch, b_ch]), cv2.COLOR_LAB2BGR)
         
         # Resize to standard size
         face_resized = cv2.resize(face_crop, (160, 160))

@@ -75,8 +75,8 @@ class MTCNNDetector(BaseFaceDetector):
     
     def __init__(
         self,
-        min_face_size: int = 80,
-        confidence_threshold: float = 0.95,
+        min_face_size: int = 40,  # Lowered: 80px missed faces at normal webcam distance
+        confidence_threshold: float = 0.85,  # Lowered: 0.95 was silently dropping real faces
         scale_factor: float = 0.709,
         device: str = 'cpu'
     ):
@@ -100,9 +100,9 @@ class MTCNNDetector(BaseFaceDetector):
             self._detector = MTCNN(
                 image_size=160,
                 margin=20,
-                min_face_size=self.min_face_size,  # Using consistent min face size
-                thresholds=[0.7, 0.8, 0.9],  # Stricter thresholds for better accuracy
-                factor=0.709,  # Standard factor for better image pyramid resolution
+                min_face_size=self.min_face_size,
+                thresholds=[0.6, 0.7, 0.85],  # Relaxed: [0.7,0.8,0.9] was stage-1 too strict
+                factor=0.709,
                 post_process=False,
                 device=device,
                 keep_all=True

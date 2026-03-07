@@ -38,7 +38,10 @@ class EmbeddingGenerator:
         self.recognizer = face_recognizer
         self.aligner = face_aligner
         self.target_size = target_size
-        self.blur_threshold = 80.0  # Threshold for blur detection
+        # Lowered 80 → 35: webcam face crops at 160×160 typically have Laplacian
+        # variance of 30–80.  Threshold of 80 was silently discarding most images,
+        # leaving too few samples for reliable embedding generation.
+        self.blur_threshold = 35.0
     
     @staticmethod
     def is_image_blurry(image: np.ndarray, threshold: float = 80.0) -> Tuple[bool, float]:

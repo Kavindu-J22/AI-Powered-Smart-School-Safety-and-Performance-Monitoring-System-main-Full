@@ -247,28 +247,33 @@ class FaceTrainer:
         
         result['images_processed'] = len(images)
         
-        # Process images: detect, align, optionally augment
+        # Process images: align if landmarks available, otherwise use directly.
+        # IMPORTANT: images are already 160×160 face crops from the capture step —
+        # re-running full detection here often fails on the tight crop and silently
+        # discards most training images.  We attempt detection for alignment (better
+        # embedding quality) but always fall back to the raw crop so no image is lost.
         processed_faces = []
         
         for img in images:
-            # Detect face
+            # Ensure 160×160
+            if img.shape[:2] != (160, 160):
+                img = cv2.resize(img, (160, 160))
+            
+            # Try to detect + align for better landmark-based alignment
             detection = self.detector.detect_largest(img)
             
-            if detection is None:
-                continue
-            
-            # Align face
-            aligned = self.aligner.align(
-                img,
-                detection.landmarks,
-                detection.bbox
-            )
-            
-            processed_faces.append(aligned)
-        
-        if not processed_faces:
-            result['error'] = 'No faces detected in images'
-            return result
+            if detection is not None:
+                aligned = self.aligner.align(
+                    img,
+                    detection.landmarks,
+                    detection.bbox
+                )
+                processed_faces.append(aligned)
+            else:
+                # Image is already a face crop — use it directly rather than
+                # discarding it (the old code silently dropped these, causing
+                # "No faces detected in images" failures after registration).
+                processed_faces.append(img)
         
         # Apply augmentation
         if self.augmentation_enabled and self.augmentor:
@@ -296,17 +301,20 @@ class FaceTrainer:
         quality = self.embedding_generator.compute_quality_score(filtered_embeddings)
         result['quality_score'] = quality
         
-        # Select diverse representative embeddings for multi-embedding matching
-        # Use cluster centers or diverse samples for better accuracy
+        # Select diverse representative embeddings for multi-embedding matching.
+        # Increased max_count 10 → 20: more anchors = better coverage of face
+        # variation (pose, expression, lighting).
         representative_embeddings = self._select_representative_embeddings(
-            filtered_embeddings, 
-            max_count=10
+            filtered_embeddings,
+            max_count=20
         )
         
-        # Aggregate to single primary embedding (mean)
+        # Aggregate to single primary embedding using weighted mean — gives more
+        # weight to embeddings near the cluster center, reducing outlier influence.
+        # Using 'weighted' instead of 'mean' for a more robust representative vector.
         final_embedding = self.embedding_generator.aggregate_embeddings(
             filtered_embeddings,
-            method='mean'
+            method='weighted'
         )
         
         if final_embedding is None:

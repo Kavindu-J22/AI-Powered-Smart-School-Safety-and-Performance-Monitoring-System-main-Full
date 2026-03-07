@@ -40,8 +40,8 @@ class Config:
     # ===========================================
     # Detection model: 'mtcnn', 'retinaface', 'mediapipe'
     DETECTION_MODEL: str = "mtcnn"
-    DETECTION_CONFIDENCE: float = 0.95
-    MIN_FACE_SIZE: int = 80  # Minimum face size in pixels
+    DETECTION_CONFIDENCE: float = 0.85  # Lowered: 0.95 was too strict, MTCNN rarely hits it
+    MIN_FACE_SIZE: int = 40  # Lowered: 80px was too large, misses distant faces
     FACE_DETECTION_SCALE: float = 1.0  # Full scale for better accuracy at distances
     
     # ===========================================
@@ -50,8 +50,8 @@ class Config:
     # Recognition model: 'arcface', 'facenet', 'facenet512'
     RECOGNITION_MODEL: str = "arcface"
     EMBEDDING_SIZE: int = 512  # ArcFace embedding dimension
-    RECOGNITION_THRESHOLD: float = 0.65  # Cosine similarity threshold (higher = stricter)
-    UNKNOWN_THRESHOLD: float = 0.50  # Below this, definitely unknown
+    RECOGNITION_THRESHOLD: float = 0.58  # Tuned: 0.65 was too strict for webcam quality images
+    UNKNOWN_THRESHOLD: float = 0.42  # Below this, definitely unknown
     
     # ===========================================
     # Face Capture Settings
@@ -65,7 +65,7 @@ class Config:
     # Anti-Spoofing Settings
     # ===========================================
     ANTI_SPOOF_ENABLED: bool = True
-    LIVENESS_THRESHOLD: float = 0.7
+    LIVENESS_THRESHOLD: float = 0.42  # Lowered: 0.7 was falsely rejecting real faces on single webcam images
     BLINK_DETECTION: bool = True
     
     # ===========================================
@@ -110,7 +110,7 @@ class Config:
     # Training Settings
     # ===========================================
     AUGMENTATION_ENABLED: bool = True
-    AUGMENTATION_MULTIPLIER: int = 5  # Create 5x augmented images
+    AUGMENTATION_MULTIPLIER: int = 8  # Increased: more augmented variants = more robust embeddings
     TRAINING_EPOCHS: int = 10
     LEARNING_RATE: float = 0.001
     

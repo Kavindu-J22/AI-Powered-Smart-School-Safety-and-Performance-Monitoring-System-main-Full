@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 import logging
 import time
 from threading import Lock
-from collections import defaultdict
+from collections import defaultdict  # kept for backward compatibility with any external imports
 
 from .face_detector import FaceDetector, FaceDetection
 from .face_recognizer import FaceRecognizer
@@ -102,7 +102,9 @@ class AttendanceEngine:
         self.aligner = FaceAligner(target_size=(160, 160))
         
         if enable_anti_spoof:
-            self.anti_spoof = QuickLivenessChecker(threshold=0.6)
+            # Threshold lowered 0.6 → 0.42: single-image DFT/LBP liveness checks
+            # are unreliable for webcam stills and were falsely rejecting real students.
+            self.anti_spoof = QuickLivenessChecker(threshold=0.42)
         else:
             self.anti_spoof = None
         
@@ -230,9 +232,22 @@ class AttendanceEngine:
                 processing_time_ms=(time.time() - start_time) * 1000
             )
         
+        # Apply CLAHE lighting normalisation before alignment so that the
+        # recognition embedding is produced from the same preprocessing used
+        # during registration (where CLAHE is now applied before saving).
+        frame_preprocessed = frame.copy()
+        try:
+            lab = cv2.cvtColor(frame_preprocessed, cv2.COLOR_BGR2LAB)
+            l_ch, a_ch, b_ch = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(4, 4))
+            l_ch = clahe.apply(l_ch)
+            frame_preprocessed = cv2.cvtColor(cv2.merge([l_ch, a_ch, b_ch]), cv2.COLOR_LAB2BGR)
+        except Exception:
+            frame_preprocessed = frame  # fallback: continue without CLAHE
+        
         # Align face
         aligned_face = self.aligner.align(
-            frame,
+            frame_preprocessed,
             detection.landmarks,
             detection.bbox
         )
@@ -273,69 +288,69 @@ class AttendanceEngine:
         embedding: np.ndarray
     ) -> Tuple[Optional[str], Optional[str], float]:
         """
-        Find best matching student using multi-embedding matching.
-        Uses top-3 mean similarity across stored embeddings per student for robustness.
+        Find best matching student for a query embedding.
+
+        Strategy:
+        - When multi-embeddings are stored for a student, use the top-3 mean
+          cosine similarity across all their stored embeddings.  This covers
+          the full range of captured poses/lighting far better than a single
+          average vector.
+        - For any student without multi-embeddings, fall back to the single
+          mean embedding stored in the matrix.
+        - The two paths are EXCLUSIVE per student (no double-counting) to
+          keep scores comparable and avoid inflated confidence.
         """
         if self._embedding_matrix is None or len(self._embedding_matrix) == 0:
             return None, None, 0.0
         
-        # Normalize input embedding
+        # Normalise query embedding
         norm = np.linalg.norm(embedding)
         if norm > 0:
             embedding = embedding / norm
         
-        # Collect all potential matches
-        student_scores = defaultdict(list)
-        
-        # 1. Multi-embedding matching (Robust)
+        student_best_scores: dict = {}
+
+        # --- Path A: multi-embedding matching (preferred) ---
         if hasattr(self, '_multi_embeddings') and self._multi_embeddings:
             for student_id, multi_embs in self._multi_embeddings.items():
-                if multi_embs:
-                    # Compute all similarities for this student
-                    sims = [np.dot(embedding, stored_emb) for stored_emb in multi_embs]
-                    sims.sort(reverse=True)
-                    
-                    # Top-3 mean similarity
-                    top_n = min(len(sims), 3)
-                    mean_sim = np.mean(sims[:top_n])
-                    student_scores[student_id].append(mean_sim)
-        
-        # 2. Vectorized single-embedding matching (Fast fallback)
-        similarities = np.dot(self._embedding_matrix, embedding)
-        for idx, sim in enumerate(similarities):
-            student_id = self._student_ids[idx]
-            student_scores[student_id].append(float(sim))
-            
-        if not student_scores:
+                if not multi_embs:
+                    continue
+                sims = sorted(
+                    [float(np.dot(embedding, e)) for e in multi_embs],
+                    reverse=True
+                )
+                top_n = min(len(sims), 3)
+                student_best_scores[student_id] = float(np.mean(sims[:top_n]))
+
+        # --- Path B: single mean-embedding fallback for students not in Path A ---
+        for idx, student_id in enumerate(self._student_ids):
+            if student_id in student_best_scores:
+                continue  # already scored via multi-embeddings — skip
+            student_best_scores[student_id] = float(
+                np.dot(self._embedding_matrix[idx], embedding)
+            )
+
+        if not student_best_scores:
             return None, None, 0.0
-            
-        # Get best score for each student
-        final_matches = []
-        for student_id, scores in student_scores.items():
-            final_matches.append((student_id, max(scores)))
-            
-        # Sort by score descending
-        final_matches.sort(key=lambda x: x[1], reverse=True)
-        
-        best_student_id, best_confidence = final_matches[0]
-        
-        # Check for ambiguity (Top 2 matches too close)
-        if len(final_matches) > 1:
-            second_student_id, second_confidence = final_matches[1]
-            if (best_confidence - second_confidence) < 0.05:
-                # Potential ambiguity: penalize confidence
+
+        # Sort descending by score
+        ranked = sorted(student_best_scores.items(), key=lambda x: x[1], reverse=True)
+        best_student_id, best_confidence = ranked[0]
+
+        # Small ambiguity penalty when top-2 are very close
+        if len(ranked) > 1:
+            _, second_confidence = ranked[1]
+            if (best_confidence - second_confidence) < 0.04:
                 best_confidence *= 0.95
-                logger.debug(f"Possible ambiguity between {best_student_id} and {second_student_id}")
-        
-        if best_student_id and best_confidence >= self.recognition_threshold:
+                logger.debug(
+                    f"Ambiguity detected: {ranked[0][0]} ({best_confidence:.3f}) "
+                    f"vs {ranked[1][0]} ({second_confidence:.3f})"
+                )
+
+        if best_confidence >= self.recognition_threshold:
             student_name = self.face_database.get_student_name(best_student_id)
             return best_student_id, student_name, best_confidence
-        
-        return None, None, best_confidence
-    
-    def _mark_attendance(self, result: RecognitionResult):
-        """Mark attendance for recognized student."""
-        if not result.student_id:
+
             return
         
         with self._lock:
