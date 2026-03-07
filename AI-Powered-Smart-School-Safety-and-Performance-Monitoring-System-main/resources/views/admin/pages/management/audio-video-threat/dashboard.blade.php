@@ -35,6 +35,77 @@
             </div>
         </div>
 
+        <!-- ===================== CLASSROOM IoT CONFIGURATION ===================== -->
+        <div class="card mb-4 border-0 shadow-sm">
+            <div class="card-header pb-0 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="material-symbols-rounded text-sm me-1">sensors</i>
+                    Classroom IoT Device Setup
+                </h6>
+                <span class="badge bg-gradient-info" id="selectedClassBadge" style="display:none;"></span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <!-- Classroom Selector -->
+                    <div class="col-md-4">
+                        <label class="form-label text-xs text-uppercase text-secondary fw-bold mb-1">Select Classroom</label>
+                        <select class="form-select form-select-sm" id="classroomSelect">
+                            <option value="">— Choose a classroom —</option>
+                            @foreach($classrooms as $cls)
+                            <option value="{{ $cls->id }}"
+                                data-name="{{ $cls->class_name }}"
+                                data-grade="{{ $cls->grade_level }}"
+                                data-section="{{ $cls->section }}"
+                                data-room="{{ $cls->room_number }}"
+                                data-camera="{{ $cls->camera_ip }}"
+                                data-audio="{{ $cls->audio_ip }}">
+                                Grade {{ $cls->grade_level }} – {{ $cls->class_name }}{{ $cls->section ? ' ('.$cls->section.')' : '' }}
+                            </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <!-- Camera IP -->
+                    <div class="col-md-3">
+                        <label class="form-label text-xs text-uppercase text-secondary fw-bold mb-1">
+                            <i class="material-symbols-rounded text-sm">videocam</i> Camera IP (ESP32-CAM)
+                        </label>
+                        <input type="text" class="form-control form-control-sm" id="classroomCameraIp"
+                            placeholder="192.168.1.101">
+                        <div class="text-xs text-muted mt-1">Streaming URL will be <code>http://&lt;ip&gt;/stream</code></div>
+                    </div>
+                    <!-- Audio IP -->
+                    <div class="col-md-3">
+                        <label class="form-label text-xs text-uppercase text-secondary fw-bold mb-1">
+                            <i class="material-symbols-rounded text-sm">mic</i> Audio IP (ESP32 Audio)
+                        </label>
+                        <input type="text" class="form-control form-control-sm" id="classroomAudioIp"
+                            placeholder="192.168.1.102">
+                        <div class="text-xs text-muted mt-1">Separate wired or WiFi audio module</div>
+                    </div>
+                    <!-- Actions -->
+                    <div class="col-md-2 d-flex gap-2">
+                        <button class="btn btn-success btn-sm w-50" id="saveClassroomDevicesBtn" disabled>
+                            <i class="material-symbols-rounded text-sm">save</i> Save
+                        </button>
+                        <button class="btn btn-primary btn-sm w-50" id="loadClassroomBtn" disabled>
+                            <i class="material-symbols-rounded text-sm">play_arrow</i> Use
+                        </button>
+                    </div>
+                </div>
+                <!-- Critical alert indicator for selected classroom -->
+                <div id="classroomCriticalIndicator" class="mt-3 d-none">
+                    <div class="alert alert-danger d-flex align-items-center gap-2 py-2 mb-0">
+                        <i class="material-symbols-rounded">crisis_alert</i>
+                        <div>
+                            <strong>⚠ CRITICAL ISSUE</strong> — Both camera and audio detected a threat in
+                            <span id="criticalClassroomName" class="fw-bold"></span>.
+                            SMS alert dispatched.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ===================== ADMIN CONTACT NUMBER ===================== -->
         <div class="card mb-4 border-0 shadow-sm">
             <div class="card-body py-3">
@@ -355,6 +426,8 @@
             stopAudioSession: '{{ route("admin.management.audio-video-threat.stop-audio-session") }}',
             processFrame: '{{ route("admin.management.audio-video-threat.process-frame") }}',
             sendCombinedAlert: '{{ route("admin.management.audio-video-threat.send-combined-alert") }}',
+            classrooms: '{{ route("admin.management.audio-video-threat.classrooms") }}',
+            updateClassroomDevices: '{{ route("admin.management.audio-video-threat.classrooms.update-devices") }}',
         }
     };
 </script>

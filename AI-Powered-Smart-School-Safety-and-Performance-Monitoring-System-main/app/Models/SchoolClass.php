@@ -22,6 +22,8 @@ class SchoolClass extends Model
         'capacity',
         'description',
         'status',
+        'camera_ip',
+        'audio_ip',
     ];
 
     protected $casts = [

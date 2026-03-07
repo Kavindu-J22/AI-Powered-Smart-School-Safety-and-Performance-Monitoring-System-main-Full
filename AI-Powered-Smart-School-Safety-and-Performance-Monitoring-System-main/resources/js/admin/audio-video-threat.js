@@ -41,6 +41,9 @@ class AudioVideoThreatDetector {
         /* ---------- history ---------- */
         this.history = [];
 
+        /* ---------- classroom / IoT state ---------- */
+        this.selectedClassroom = null; // { id, name, grade, section, room, cameraIp, audioIp }
+
         this.init();
     }
 
@@ -101,6 +104,16 @@ class AudioVideoThreatDetector {
 
         this.visualizer    = document.getElementById('audioVisualizer');
         this.visualizerCtx = this.visualizer?.getContext('2d');
+
+        // Classroom IoT panel
+        this.classroomSelect        = document.getElementById('classroomSelect');
+        this.classroomCameraIp      = document.getElementById('classroomCameraIp');
+        this.classroomAudioIp       = document.getElementById('classroomAudioIp');
+        this.saveClassroomDevicesBtn= document.getElementById('saveClassroomDevicesBtn');
+        this.loadClassroomBtn       = document.getElementById('loadClassroomBtn');
+        this.selectedClassBadge     = document.getElementById('selectedClassBadge');
+        this.classroomCriticalIndicator = document.getElementById('classroomCriticalIndicator');
+        this.criticalClassroomName  = document.getElementById('criticalClassroomName');
     }
 
     _bindEvents() {
@@ -147,6 +160,11 @@ class AudioVideoThreatDetector {
             this.contactEditRow?.classList.add('d-none');
             this.contactDisplayRow?.classList.remove('d-none');
         });
+
+        // Classroom IoT panel
+        this.classroomSelect?.addEventListener('change', () => this._onClassroomChange());
+        this.saveClassroomDevicesBtn?.addEventListener('click', () => this._saveClassroomDevices());
+        this.loadClassroomBtn?.addEventListener('click', () => this._loadClassroomIntoMonitoring());
     }
 
     /* ============================================================
@@ -740,6 +758,102 @@ class AudioVideoThreatDetector {
     }
 
     /* ============================================================
+       CLASSROOM IoT MANAGEMENT
+    ============================================================ */
+
+    /** Called when the classroom dropdown changes */
+    _onClassroomChange() {
+        const opt = this.classroomSelect?.options[this.classroomSelect.selectedIndex];
+        if (!opt || !opt.value) {
+            this.selectedClassroom = null;
+            if (this.saveClassroomDevicesBtn) this.saveClassroomDevicesBtn.disabled = true;
+            if (this.loadClassroomBtn) this.loadClassroomBtn.disabled = true;
+            if (this.selectedClassBadge) this.selectedClassBadge.style.display = 'none';
+            if (this.classroomCameraIp) this.classroomCameraIp.value = '';
+            if (this.classroomAudioIp) this.classroomAudioIp.value = '';
+            return;
+        }
+
+        this.selectedClassroom = {
+            id:        opt.value,
+            name:      opt.dataset.name,
+            grade:     opt.dataset.grade,
+            section:   opt.dataset.section,
+            room:      opt.dataset.room,
+            cameraIp:  opt.dataset.camera || '',
+            audioIp:   opt.dataset.audio  || '',
+        };
+
+        // Pre-fill the IP fields with saved values
+        if (this.classroomCameraIp) this.classroomCameraIp.value = this.selectedClassroom.cameraIp;
+        if (this.classroomAudioIp)  this.classroomAudioIp.value  = this.selectedClassroom.audioIp;
+
+        // Enable buttons
+        if (this.saveClassroomDevicesBtn) this.saveClassroomDevicesBtn.disabled = false;
+        if (this.loadClassroomBtn) this.loadClassroomBtn.disabled = false;
+
+        // Show badge
+        if (this.selectedClassBadge) {
+            this.selectedClassBadge.textContent =
+                `Grade ${this.selectedClassroom.grade} – ${this.selectedClassroom.name}`;
+            this.selectedClassBadge.style.display = '';
+        }
+    }
+
+    /** Persist the camera/audio IPs for the selected classroom via the Laravel API */
+    async _saveClassroomDevices() {
+        if (!this.selectedClassroom) return;
+        const camIp   = this.classroomCameraIp?.value?.trim() || '';
+        const audioIp = this.classroomAudioIp?.value?.trim()  || '';
+
+        try {
+            const r = await fetch(this.routes.updateClassroomDevices, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrf },
+                body: JSON.stringify({
+                    classroom_id: this.selectedClassroom.id,
+                    camera_ip:    camIp,
+                    audio_ip:     audioIp,
+                }),
+            });
+            const data = await r.json();
+            if (data.success) {
+                // Update local state so "Use" button uses latest IPs
+                this.selectedClassroom.cameraIp = camIp;
+                this.selectedClassroom.audioIp  = audioIp;
+                // Update dataset on the option element
+                const opt = this.classroomSelect?.options[this.classroomSelect.selectedIndex];
+                if (opt) { opt.dataset.camera = camIp; opt.dataset.audio = audioIp; }
+                this._addAlert(`IoT endpoints saved for ${this.selectedClassroom.name}.`, 'info', 'System');
+            } else {
+                console.error('Save classroom devices failed:', data);
+            }
+        } catch (e) { console.error('Error saving classroom devices:', e); }
+    }
+
+    /** Apply the selected classroom's IPs to the monitoring panel and switch to ESP32 mode */
+    _loadClassroomIntoMonitoring() {
+        if (!this.selectedClassroom) return;
+
+        const camIp = this.classroomCameraIp?.value?.trim() || this.selectedClassroom.cameraIp;
+
+        // Switch video source to ESP32-CAM and pre-fill the IP input
+        const esp32Radio = document.getElementById('esp32Camera');
+        if (esp32Radio) {
+            esp32Radio.checked = true;
+            esp32Radio.dispatchEvent(new Event('change'));
+        }
+        const esp32IpInput = document.getElementById('esp32IpInput');
+        if (esp32IpInput && camIp) esp32IpInput.value = camIp;
+
+        this._addAlert(
+            `Monitoring classroom: ${this.selectedClassroom.name} (Grade ${this.selectedClassroom.grade}). ` +
+            `Camera: ${camIp || '—'}  Audio: ${this.selectedClassroom.audioIp || '—'}`,
+            'info', 'Classroom'
+        );
+    }
+
+    /* ============================================================
        COMBINED CRITICAL THREAT LOGIC
     ============================================================ */
     _checkCombinedThreat() {
@@ -771,8 +885,20 @@ class AudioVideoThreatDetector {
         // Show banner
         if (this.criticalBanner) {
             this.criticalBanner.classList.remove('d-none');
-            this.criticalMsg && (this.criticalMsg.textContent =
-                `Audio: ${audioLabel} + Video: ${videoLabel} — SMS alert sent to ${alertNumber}`);
+            let bannerText = `Audio: ${audioLabel} + Video: ${videoLabel} — SMS alert sent to ${alertNumber}`;
+            if (this.selectedClassroom) {
+                bannerText = `[${this.selectedClassroom.name} · Grade ${this.selectedClassroom.grade}] ` + bannerText;
+            }
+            this.criticalMsg && (this.criticalMsg.textContent = bannerText);
+        }
+
+        // Show classroom-specific critical indicator
+        if (this.selectedClassroom && this.classroomCriticalIndicator) {
+            this.classroomCriticalIndicator.classList.remove('d-none');
+            if (this.criticalClassroomName) {
+                this.criticalClassroomName.textContent =
+                    `${this.selectedClassroom.name} (Grade ${this.selectedClassroom.grade})`;
+            }
         }
 
         // Populate modal fields
@@ -805,9 +931,11 @@ class AudioVideoThreatDetector {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrf },
                 body: JSON.stringify({
-                    audio_threat: audioData,
-                    video_threat: videoData,
-                    alert_number: alertNumber,
+                    audio_threat:   audioData,
+                    video_threat:   videoData,
+                    alert_number:   alertNumber,
+                    classroom_name: this.selectedClassroom?.name  || '',
+                    grade_level:    this.selectedClassroom?.grade || '',
                 })
             });
         } catch (e) { console.error('Failed to send combined alert SMS:', e); }

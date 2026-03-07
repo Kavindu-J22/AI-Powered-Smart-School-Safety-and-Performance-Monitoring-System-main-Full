@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Management;
 
 use App\Http\Controllers\Controller;
+use App\Models\SchoolClass;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
@@ -34,12 +35,61 @@ class AudioVideoThreatController extends Controller
     {
         $audioStats = $this->getAudioStatus();
         $videoStats = $this->getVideoStatus();
+        $classrooms = SchoolClass::where('status', 'active')
+            ->orderBy('grade_level')
+            ->orderBy('class_name')
+            ->get(['id', 'class_name', 'grade_level', 'section', 'room_number', 'camera_ip', 'audio_ip']);
 
         return view($this->viewDirectory . 'dashboard', [
-            'audioStats' => $audioStats,
-            'videoStats' => $videoStats,
+            'audioStats'  => $audioStats,
+            'videoStats'  => $videoStats,
             'audioApiUrl' => $this->audioApiUrl,
             'videoApiUrl' => $this->videoApiUrl,
+            'classrooms'  => $classrooms,
+        ]);
+    }
+
+    /**
+     * Return all active classrooms with their IoT endpoints (JSON)
+     */
+    public function classrooms(): JsonResponse
+    {
+        $classrooms = SchoolClass::where('status', 'active')
+            ->orderBy('grade_level')
+            ->orderBy('class_name')
+            ->get(['id', 'class_name', 'grade_level', 'section', 'room_number', 'camera_ip', 'audio_ip']);
+
+        return response()->json(['success' => true, 'classrooms' => $classrooms]);
+    }
+
+    /**
+     * Save the camera_ip and audio_ip for a specific classroom.
+     */
+    public function updateClassroomDevices(Request $request): JsonResponse
+    {
+        $request->validate([
+            'classroom_id' => 'required|exists:school_classes,id',
+            'camera_ip'    => 'nullable|string|max:255',
+            'audio_ip'     => 'nullable|string|max:255',
+        ]);
+
+        $classroom = SchoolClass::findOrFail($request->classroom_id);
+        $classroom->update([
+            'camera_ip' => $request->camera_ip,
+            'audio_ip'  => $request->audio_ip,
+        ]);
+
+        Log::info('AudioVideo: Classroom IoT devices updated', [
+            'classroom_id' => $classroom->id,
+            'class_name'   => $classroom->class_name,
+            'camera_ip'    => $classroom->camera_ip,
+            'audio_ip'     => $classroom->audio_ip,
+        ]);
+
+        return response()->json([
+            'success'   => true,
+            'message'   => "IoT endpoints saved for {$classroom->class_name}",
+            'classroom' => $classroom->only(['id', 'class_name', 'grade_level', 'section', 'room_number', 'camera_ip', 'audio_ip']),
         ]);
     }
 
@@ -211,11 +261,13 @@ class AudioVideoThreatController extends Controller
     public function sendCombinedAlert(Request $request): JsonResponse
     {
         try {
-            $audioThreat  = $request->input('audio_threat', []);
-            $videoThreat  = $request->input('video_threat', []);
-            $timestamp    = now()->format('Y-m-d H:i:s');
+            $audioThreat   = $request->input('audio_threat', []);
+            $videoThreat   = $request->input('video_threat', []);
+            $timestamp     = now()->format('Y-m-d H:i:s');
+            $classroomName = $request->input('classroom_name', '');
+            $gradeLevel    = $request->input('grade_level', '');
             // Use admin-supplied number from the UI; fall back to the default from config
-            $alertNumber  = trim($request->input('alert_number', $this->defaultAlertNumber)) ?: $this->defaultAlertNumber;
+            $alertNumber   = trim($request->input('alert_number', $this->defaultAlertNumber)) ?: $this->defaultAlertNumber;
 
             // Resolve human-readable audio type:
             // For non_speech threats the actual class is nested inside non_speech_result.detected_class
@@ -246,7 +298,15 @@ class AudioVideoThreatController extends Controller
 
             // Build a concise SMS body (Twilio standard SMS max 1600 chars)
             $smsBody  = "⚠ CRITICAL SCHOOL THREAT ALERT ⚠\n";
-            $smsBody .= "Time: {$timestamp}\n\n";
+            $smsBody .= "Time: {$timestamp}\n";
+            if ($classroomName) {
+                $locationLine = "Classroom: {$classroomName}";
+                if ($gradeLevel) {
+                    $locationLine .= " (Grade {$gradeLevel})";
+                }
+                $smsBody .= "{$locationLine}\n";
+            }
+            $smsBody .= "\n";
             $smsBody .= "AUDIO: {$audioType} ({$audioConf}%)\n";
             if ($speechText) {
                 $smsBody .= "Transcript: \"{$speechText}\"\n";
@@ -269,6 +329,8 @@ class AudioVideoThreatController extends Controller
             Log::critical('AudioVideo: COMBINED CRITICAL SMS ALERT sent', [
                 'audio_threat'  => $audioType,
                 'video_threat'  => $videoType,
+                'classroom'     => $classroomName ?: 'N/A',
+                'grade'         => $gradeLevel ?: 'N/A',
                 'sms_to'        => $alertNumber,
                 'timestamp'     => $timestamp,
             ]);
