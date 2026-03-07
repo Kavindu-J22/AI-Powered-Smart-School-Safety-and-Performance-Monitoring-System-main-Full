@@ -984,14 +984,14 @@
                 font - size: 18 px;
                 font - weight: 600;
                 color: #1e293b;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin-bottom: 8px;
-                }
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        margin-bottom: 8px;
+                    }
 
-                .section-subtitle {
-                    color: # 64748 b;
+                    .section-subtitle {
+                        color: # 64748 b;
                 margin: 0;
                 font - size: 14 px;
             }
@@ -1017,28 +1017,28 @@
                 transform: translateY(-4 px);
                 box - shadow: 0 12 px 32 px rgba(0, 0, 0, 0.12);
                 border - color: #06C167;
-                }
+                    }
 
-                .preset-preview {
-                    display: flex;
-                    height: 40px;
-                    border-radius: 8px;
-                    overflow: hidden;
-                    margin-bottom: 12px;
-                }
+                    .preset-preview {
+                        display: flex;
+                        height: 40px;
+                        border-radius: 8px;
+                        overflow: hidden;
+                        margin-bottom: 12px;
+                    }
 
-                .color-strip {
-                    flex: 1;
-                    transition: transform 0.3s ease;
-                }
+                    .color-strip {
+                        flex: 1;
+                        transition: transform 0.3s ease;
+                    }
 
-                .preset-card:hover .color-strip {
-                    transform: scale(1.05);
-                }
+                    .preset-card:hover .color-strip {
+                        transform: scale(1.05);
+                    }
 
-                .preset-name {
-                    font-weight: 500;
-                    color: # 374151;
+                    .preset-name {
+                        font-weight: 500;
+                        color: # 374151;
                 font - size: 14 px;
                 text - align: center;
                 display: block;
@@ -1056,12 +1056,12 @@
 
             .color - input - card: hover {
                 border - color: #06C167;
-                    box-shadow: 0 8px 24px rgba(6, 193, 103, 0.12);
-                }
+                        box-shadow: 0 8px 24px rgba(6, 193, 103, 0.12);
+                    }
 
-                .color-label {
-                    font-weight: 600;
-                    color: # 1e293 b;
+                    .color-label {
+                        font-weight: 600;
+                        color: # 1e293 b;
                 margin - bottom: 16 px;
                 display: flex;
                 align - items: center;
@@ -1125,12 +1125,12 @@
 
             .color - hex - input: focus {
                 border - color: #06C167;
-                    box-shadow: 0 0 0 3px rgba(6, 193, 103, 0.1);
-                    background: white;
-                }
+                        box-shadow: 0 0 0 3px rgba(6, 193, 103, 0.1);
+                        background: white;
+                    }
 
-                .color-description {
-                    color: # 64748 b;
+                    .color-description {
+                        color: # 64748 b;
                 font - size: 12 px;
                 line - height: 1.4;
             }
@@ -1152,11 +1152,11 @@
 
             .status - color - card.success - theme: hover {
                 border - color: #10B981;
-                    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
-                }
+                        box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
+                    }
 
-                .status-color-card.info-theme:hover {
-                    border-color: # 3 B82F6;
+                    .status-color-card.info-theme:hover {
+                        border-color: # 3 B82F6;
                 box - shadow: 0 8 px 24 px rgba(59, 130, 246, 0.15);
             }
 
@@ -1177,22 +1177,22 @@
                 margin - bottom: 16 px;
                 font - weight: 600;
                 color: #374151;
-                }
+                    }
 
-                /* Gradient Configuration Cards */
-                .gradient-config-card {
-                    background: white;
-                    border-radius: 12px;
-                    padding: 20px;
-                    border: 1px solid rgba(226, 232, 240, 0.8);
-                    transition: all 0.3s ease;
-                    height: 100%;
-                }
+                    /* Gradient Configuration Cards */
+                    .gradient-config-card {
+                        background: white;
+                        border-radius: 12px;
+                        padding: 20px;
+                        border: 1px solid rgba(226, 232, 240, 0.8);
+                        transition: all 0.3s ease;
+                        height: 100%;
+                    }
 
-                .gradient-config-card:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-                    border-color: # 06 C167;
+                    .gradient-config-card:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+                        border-color: # 06 C167;
             }
 
             .gradient - header {
@@ -1202,17 +1202,17 @@
             .gradient - title {
                 font - weight: 600;
                 color: #1e293b;
-                    margin-bottom: 4px;
-                }
+                        margin-bottom: 4px;
+                    }
 
-                .gradient-controls {
-                    margin-bottom: 20px;
-                }
+                    .gradient-controls {
+                        margin-bottom: 20px;
+                    }
 
-                .gradient-label {
-                    font-size: 12px;
-                    font-weight: 500;
-                    color: # 64748 b;
+                    .gradient-label {
+                        font-size: 12px;
+                        font-weight: 500;
+                        color: # 64748 b;
                 margin - bottom: 8 px;
                 display: block;
             }
@@ -2209,7 +2209,7 @@
             const form = document.getElementById('attendance-timing-form');
             const deadline = form.querySelector('[name="checkin_deadline"]').value;
             const checkout = form.querySelector('[name="checkout_time"]').value;
-            const lateMin  = form.querySelector('[name="late_after_minutes"]').value;
+            const lateMin = form.querySelector('[name="late_after_minutes"]').value;
 
             if (!deadline || !checkout || lateMin === '') {
                 alert('Please fill in all attendance timing fields.');
@@ -2228,8 +2228,8 @@
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
                     },
                     body: JSON.stringify({
-                        checkin_deadline:   deadline,
-                        checkout_time:      checkout,
+                        checkin_deadline: deadline,
+                        checkout_time: checkout,
                         late_after_minutes: parseInt(lateMin, 10),
                     }),
                 })
