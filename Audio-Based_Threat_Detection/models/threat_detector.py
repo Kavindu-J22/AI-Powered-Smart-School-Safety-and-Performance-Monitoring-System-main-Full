@@ -61,13 +61,22 @@ class ThreatDetector:
         # PANNS CNN14 (primary) outputs AudioSet probabilities spread across 527
         # classes, so raw scores for threat events are typically 0.05–0.40.
         # These thresholds are calibrated to PANNS output scale.
-        # Custom model fallback uses higher scores (0.5–0.9) but we raise its
-        # thresholds dynamically inside analyze_audio when panns_available=False.
+        #
+        # Glass breaking and screaming previously had 0-10% detection rates.
+        # Root causes identified and fixed:
+        #  1. AudioSet label coverage was too narrow (fixed in pretrained_audio_detector.py).
+        #  2. SNR minimum (12 dB) was filtering out transient sounds (now 6 dB).
+        #  3. Adaptive threshold grew too aggressively (fixed in noise_profiler.py).
+        #  4. Thresholds here were slightly too high relative to typical PANNS scores.
+        #
+        # New thresholds use more conservative (lower) values for the previously
+        # under-detected classes so that genuine threat events at PANNS score ~0.05
+        # are reliably reported.
         self.class_thresholds = {
-            'crying':         0.06,   # Soft sounds — very sensitive threshold
-            'screaming':      0.08,   # High-energy but score still modest in AudioSet
-            'shouting':       0.08,   # Same as screaming
-            'glass_breaking': 0.08,   # Distinctive transient
+            'crying':         0.05,   # Soft sounds — very sensitive threshold
+            'screaming':      0.05,   # Increased recall; adaptive threshold guards FP
+            'shouting':       0.06,   # Slightly higher — shouts are louder/more common
+            'glass_breaking': 0.05,   # Sharp transient — needs low base threshold
             'normal':         0.0     # Always allow normal (no threshold)
         }
 
@@ -173,7 +182,14 @@ class ThreatDetector:
                     self.detection_history.append({'class': 'normal', 'is_threat': False})
                     return result
 
-                # Apply noise reduction
+                # Apply noise reduction.
+                # NOTE: We keep a copy of the un-denoised audio for the PANNS
+                # path because spectral subtraction is destructive for impulsive
+                # transient sounds (glass breaking, sharp screams).  PANNS CNN14
+                # was trained on raw AudioSet audio, so it performs best on
+                # minimally-processed input.  We still denoise for the custom
+                # model (MFCC-based) which benefits from cleaner spectrograms.
+                audio_for_panns = processed_audio   # preserve transients
                 processed_audio = self.noise_profiler.denoise_audio(processed_audio)
 
             # ── Non-speech threat detection ────────────────────────────────
@@ -181,9 +197,12 @@ class ThreatDetector:
             # Fallback: custom CNN-BiLSTM model (uses MFCC features)
             if enable_non_speech:
                 if self.panns_available:
-                    # PANNS path: feed raw preprocessed audio directly
+                    # PANNS path: feed the un-denoised audio to preserve transients.
+                    # audio_for_panns is set above (before denoising); if the noise
+                    # profiler was not calibrated yet, it equals processed_audio.
+                    panns_audio = audio_for_panns if self.noise_profiler.is_calibrated else processed_audio
                     class_name, confidence, all_probs_dict = self.panns_detector.detect(
-                        processed_audio, AudioConfig.SAMPLE_RATE
+                        panns_audio, AudioConfig.SAMPLE_RATE
                     )
                     all_probs_display = {k: round(v, 4) for k, v in all_probs_dict.items()}
                     detector_used = 'panns_cnn14'
@@ -410,10 +429,10 @@ class ThreatDetector:
         else:  # normal — balanced (default)
             self.consecutive_required = 1
             self.class_thresholds = {            # PANNS scale
-                'crying':         0.06,
-                'screaming':      0.08,
-                'shouting':       0.08,
-                'glass_breaking': 0.08,
+                'crying':         0.05,
+                'screaming':      0.05,
+                'shouting':       0.06,
+                'glass_breaking': 0.05,
                 'normal':         0.0
             }
             self.custom_class_thresholds = {     # custom model scale

@@ -25,8 +25,7 @@ return [
         'items' => [
             getSideBarElement('menu_book', 'Lessons', 'admin.management.lessons.index'),
             getSideBarElement('assignment', 'Homework', 'admin.management.homework.dashboard'),
-            getSideBarElement('analytics', 'Performance', 'admin.management.performance.dashboard'),
-            getSideBarElement('summarize', 'Monthly Reports', 'admin.management.reports.index'),
+            getSideBarElement('analytics', 'Performance & Reports', 'admin.management.performance.dashboard'),
             getSideBarElement('grade', 'Grades', 'admin.grades.index'),
             getSideBarElement('schedule', 'Timetable Viewer', 'admin.timetable-viewer.index'),
         ],

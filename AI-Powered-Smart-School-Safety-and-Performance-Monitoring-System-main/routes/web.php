@@ -231,6 +231,8 @@ Route::middleware(['auth'])->group(function () {
             Route::prefix('performance')->name('performance.')->controller(\App\Http\Controllers\Admin\Management\PerformanceController::class)->group(function () {
                 Route::get('/', 'dashboard')->name('dashboard');
                 Route::get('/student/{student}', 'studentPerformance')->name('student');
+                Route::get('/student/{student}/pdf', 'downloadStudentPdf')->name('student-pdf');
+                Route::get('/download-all', 'downloadAllPdf')->name('download-all');
                 Route::get('/class/{class}', 'classPerformance')->name('class');
                 Route::post('/trends', 'trends')->name('trends');
                 Route::post('/heatmap', 'heatmap')->name('heatmap');
@@ -246,6 +248,7 @@ Route::middleware(['auth'])->group(function () {
                 Route::post('/send-to-parents', 'sendToParents')->name('send-to-parents');
                 Route::post('/{report}/acknowledge', 'markAcknowledged')->name('acknowledge');
                 Route::get('/{report}/download', 'downloadPdf')->name('download');
+                Route::get('/class/{classId}/{year}/{month}/download', 'downloadClassPdf')->name('download-class');
                 Route::get('/statistics', 'statistics')->name('statistics');
             });
 

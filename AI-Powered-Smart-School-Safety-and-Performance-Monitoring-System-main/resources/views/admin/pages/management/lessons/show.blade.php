@@ -274,157 +274,161 @@
 @endpush
 
 @section('content')
-<div class="container-fluid py-4">
+@include('admin.layouts.sidebar')
+<main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg">
+    @include('admin.layouts.navbar')
+    <div class="container-fluid py-4">
 
-    {{-- Hero --}}
-    <div class="show-hero">
-        <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
-            <div style="flex:1; min-width:200px;">
-                <h3>{{ $lesson->title }}</h3>
-                <div class="show-hero-chips">
-                    <span class="hchip"><span class="material-symbols-outlined">subject</span>{{ $lesson->subject->subject_name ?? 'N/A' }}</span>
-                    <span class="hchip"><span class="material-symbols-outlined">school</span>Grade {{ $lesson->grade_level }}</span>
-                    <span class="hchip"><span class="material-symbols-outlined">signal_cellular_alt</span>{{ ucfirst($lesson->difficulty ?? 'beginner') }}</span>
-                    <span class="hchip"><span class="material-symbols-outlined">schedule</span>{{ $lesson->duration_minutes ?? 60 }} min</span>
-                </div>
-            </div>
-            <div>
-                @if($lesson->status === 'published')
-                <span class="status-hero-pill status-published">✓ Published</span>
-                @elseif($lesson->status === 'draft')
-                <span class="status-hero-pill status-draft">◷ Draft</span>
-                @else
-                <span class="status-hero-pill status-archived">⊘ Archived</span>
-                @endif
-            </div>
-        </div>
-    </div>
-
-    {{-- Action Bar --}}
-    <div class="action-bar">
-        <a href="{{ route('admin.management.lessons.edit', $lesson->lesson_id) }}" class="btn-edit-lesson">
-            <span class="material-symbols-outlined" style="font-size:17px;">edit</span> Edit Lesson
-        </a>
-        <a href="{{ route('admin.management.lessons.index') }}" class="btn btn-outline-secondary btn-back-list">
-            <span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">arrow_back</span> Back to List
-        </a>
-    </div>
-
-    {{-- Info Grid --}}
-    <div class="info-grid">
-        <div class="info-card">
-            <div class="ic-label"><span class="material-symbols-outlined">folder_open</span>Unit / Chapter</div>
-            <div class="ic-value">{{ $lesson->unit ?? '—' }}</div>
-        </div>
-        <div class="info-card">
-            <div class="ic-label"><span class="material-symbols-outlined">person</span>Teacher</div>
-            <div class="ic-value">{{ ($lesson->teacher->first_name ?? '') . ' ' . ($lesson->teacher->last_name ?? '') ?: '—' }}</div>
-        </div>
-        <div class="info-card">
-            <div class="ic-label"><span class="material-symbols-outlined">quiz</span>Topics Count</div>
-            <div class="ic-value">{{ count($lesson->topics ?? []) }} topics</div>
-        </div>
-        <div class="info-card">
-            <div class="ic-label"><span class="material-symbols-outlined">assignment</span>Homework</div>
-            <div class="ic-value">{{ $lesson->homework ? $lesson->homework->count() : 0 }} assigned</div>
-        </div>
-        <div class="info-card">
-            <div class="ic-label"><span class="material-symbols-outlined">calendar_today</span>Created</div>
-            <div class="ic-value">{{ $lesson->created_at->format('M d, Y') }}</div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-lg-8">
-            {{-- Topics --}}
-            <div class="section-card">
-                <div class="section-card-header">
-                    <div class="sh-icon"><span class="material-symbols-outlined">tag</span></div>
-                    <h6>Topics Covered</h6>
-                </div>
-                <div class="section-card-body">
-                    @forelse($lesson->topics ?? [] as $topic)
-                    <span class="topic-chip"><span class="material-symbols-outlined">fiber_manual_record</span>{{ $topic }}</span>
-                    @empty
-                    <span class="text-muted" style="font-size:.85rem;">No topics defined for this lesson.</span>
-                    @endforelse
-                </div>
-            </div>
-
-            {{-- Lesson Content --}}
-            <div class="section-card">
-                <div class="section-card-header">
-                    <div class="sh-icon"><span class="material-symbols-outlined">article</span></div>
-                    <h6>Lesson Content</h6>
-                    <span class="ms-auto badge" style="background:#ede9fe;color:#5b21b6;font-size:.72rem;">AI Source</span>
-                </div>
-                <div class="section-card-body">
-                    <div class="content-box">{!! nl2br(e($lesson->content)) !!}</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-4">
-            {{-- Learning Outcomes --}}
-            <div class="section-card">
-                <div class="section-card-header">
-                    <div class="sh-icon"><span class="material-symbols-outlined">emoji_events</span></div>
-                    <h6>Learning Outcomes</h6>
-                </div>
-                <div class="section-card-body">
-                    @forelse($lesson->learning_outcomes ?? [] as $outcome)
-                    <div class="outcome-item">
-                        <div class="oi-icon"><span class="material-symbols-outlined">check</span></div>
-                        <span>{{ $outcome }}</span>
+        {{-- Hero --}}
+        <div class="show-hero">
+            <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+                <div style="flex:1; min-width:200px;">
+                    <h3>{{ $lesson->title }}</h3>
+                    <div class="show-hero-chips">
+                        <span class="hchip"><span class="material-symbols-outlined">subject</span>{{ $lesson->subject->subject_name ?? 'N/A' }}</span>
+                        <span class="hchip"><span class="material-symbols-outlined">school</span>Grade {{ $lesson->grade_level }}</span>
+                        <span class="hchip"><span class="material-symbols-outlined">signal_cellular_alt</span>{{ ucfirst($lesson->difficulty ?? 'beginner') }}</span>
+                        <span class="hchip"><span class="material-symbols-outlined">schedule</span>{{ $lesson->duration_minutes ?? 60 }} min</span>
                     </div>
-                    @empty
-                    <span class="text-muted" style="font-size:.85rem;">No learning outcomes defined.</span>
-                    @endforelse
+                </div>
+                <div>
+                    @if($lesson->status === 'published')
+                    <span class="status-hero-pill status-published">✓ Published</span>
+                    @elseif($lesson->status === 'draft')
+                    <span class="status-hero-pill status-draft">◷ Draft</span>
+                    @else
+                    <span class="status-hero-pill status-archived">⊘ Archived</span>
+                    @endif
                 </div>
             </div>
         </div>
-    </div>
 
-    {{-- Related Homework --}}
-    @if($lesson->homework && $lesson->homework->count() > 0)
-    <div class="section-card">
-        <div class="section-card-header">
-            <div class="sh-icon"><span class="material-symbols-outlined">assignment</span></div>
-            <h6>Related Homework <span class="ms-2 badge" style="background:#ede9fe;color:#5b21b6;">{{ $lesson->homework->count() }}</span></h6>
-            <a href="{{ route('admin.management.homework.create') }}?lesson_id={{ $lesson->lesson_id }}" class="ms-auto btn btn-sm btn-primary" style="border-radius:8px;font-size:.78rem;font-weight:600;padding:5px 14px;">
-                <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle;">add</span> New Homework
+        {{-- Action Bar --}}
+        <div class="action-bar">
+            <a href="{{ route('admin.management.lessons.edit', $lesson->lesson_id) }}" class="btn-edit-lesson">
+                <span class="material-symbols-outlined" style="font-size:17px;">edit</span> Edit Lesson
+            </a>
+            <a href="{{ route('admin.management.lessons.index') }}" class="btn btn-outline-secondary btn-back-list">
+                <span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">arrow_back</span> Back to List
             </a>
         </div>
-        <div class="section-card-body p-0">
-            <div class="table-responsive">
-                <table class="table hw-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>Title</th>
-                            <th>Due Date</th>
-                            <th>Status</th>
-                            <th class="text-center">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($lesson->homework as $hw)
-                        <tr>
-                            <td class="fw-600">{{ Str::limit($hw->title, 40) }}</td>
-                            <td>{{ $hw->due_date->format('M d, Y') }}</td>
-                            <td><span class="badge bg-{{ $hw->status === 'active' ? 'success' : 'secondary' }}">{{ ucfirst($hw->status) }}</span></td>
-                            <td class="text-center">
-                                <a href="{{ route('admin.management.homework.show', $hw->homework_id) }}" class="btn btn-sm btn-outline-info py-1 px-2">
-                                    <span class="material-symbols-outlined" style="font-size:15px;">visibility</span>
-                                </a>
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+
+        {{-- Info Grid --}}
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="ic-label"><span class="material-symbols-outlined">folder_open</span>Unit / Chapter</div>
+                <div class="ic-value">{{ $lesson->unit ?? '—' }}</div>
+            </div>
+            <div class="info-card">
+                <div class="ic-label"><span class="material-symbols-outlined">person</span>Teacher</div>
+                <div class="ic-value">{{ ($lesson->teacher->first_name ?? '') . ' ' . ($lesson->teacher->last_name ?? '') ?: '—' }}</div>
+            </div>
+            <div class="info-card">
+                <div class="ic-label"><span class="material-symbols-outlined">quiz</span>Topics Count</div>
+                <div class="ic-value">{{ count($lesson->topics ?? []) }} topics</div>
+            </div>
+            <div class="info-card">
+                <div class="ic-label"><span class="material-symbols-outlined">assignment</span>Homework</div>
+                <div class="ic-value">{{ $lesson->homework ? $lesson->homework->count() : 0 }} assigned</div>
+            </div>
+            <div class="info-card">
+                <div class="ic-label"><span class="material-symbols-outlined">calendar_today</span>Created</div>
+                <div class="ic-value">{{ $lesson->created_at->format('M d, Y') }}</div>
             </div>
         </div>
-    </div>
-    @endif
 
-</div>
+        <div class="row">
+            <div class="col-lg-8">
+                {{-- Topics --}}
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <div class="sh-icon"><span class="material-symbols-outlined">tag</span></div>
+                        <h6>Topics Covered</h6>
+                    </div>
+                    <div class="section-card-body">
+                        @forelse($lesson->topics ?? [] as $topic)
+                        <span class="topic-chip"><span class="material-symbols-outlined">fiber_manual_record</span>{{ $topic }}</span>
+                        @empty
+                        <span class="text-muted" style="font-size:.85rem;">No topics defined for this lesson.</span>
+                        @endforelse
+                    </div>
+                </div>
+
+                {{-- Lesson Content --}}
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <div class="sh-icon"><span class="material-symbols-outlined">article</span></div>
+                        <h6>Lesson Content</h6>
+                        <span class="ms-auto badge" style="background:#ede9fe;color:#5b21b6;font-size:.72rem;">AI Source</span>
+                    </div>
+                    <div class="section-card-body">
+                        <div class="content-box">{!! nl2br(e($lesson->content)) !!}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                {{-- Learning Outcomes --}}
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <div class="sh-icon"><span class="material-symbols-outlined">emoji_events</span></div>
+                        <h6>Learning Outcomes</h6>
+                    </div>
+                    <div class="section-card-body">
+                        @forelse($lesson->learning_outcomes ?? [] as $outcome)
+                        <div class="outcome-item">
+                            <div class="oi-icon"><span class="material-symbols-outlined">check</span></div>
+                            <span>{{ $outcome }}</span>
+                        </div>
+                        @empty
+                        <span class="text-muted" style="font-size:.85rem;">No learning outcomes defined.</span>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Related Homework --}}
+        @if($lesson->homework && $lesson->homework->count() > 0)
+        <div class="section-card">
+            <div class="section-card-header">
+                <div class="sh-icon"><span class="material-symbols-outlined">assignment</span></div>
+                <h6>Related Homework <span class="ms-2 badge" style="background:#ede9fe;color:#5b21b6;">{{ $lesson->homework->count() }}</span></h6>
+                <a href="{{ route('admin.management.homework.create') }}?lesson_id={{ $lesson->lesson_id }}" class="ms-auto btn btn-sm btn-primary" style="border-radius:8px;font-size:.78rem;font-weight:600;padding:5px 14px;">
+                    <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle;">add</span> New Homework
+                </a>
+            </div>
+            <div class="section-card-body p-0">
+                <div class="table-responsive">
+                    <table class="table hw-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Due Date</th>
+                                <th>Status</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($lesson->homework as $hw)
+                            <tr>
+                                <td class="fw-600">{{ Str::limit($hw->title, 40) }}</td>
+                                <td>{{ $hw->due_date->format('M d, Y') }}</td>
+                                <td><span class="badge bg-{{ $hw->status === 'active' ? 'success' : 'secondary' }}">{{ ucfirst($hw->status) }}</span></td>
+                                <td class="text-center">
+                                    <a href="{{ route('admin.management.homework.show', $hw->homework_id) }}" class="btn btn-sm btn-outline-info py-1 px-2">
+                                        <span class="material-symbols-outlined" style="font-size:15px;">visibility</span>
+                                    </a>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        @endif
+
+    </div>
+</main>
 @endsection

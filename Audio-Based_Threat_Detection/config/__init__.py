@@ -319,7 +319,11 @@ class NoiseConfig:
     ADAPTIVE_THRESHOLD = True
     NOISE_FLOOR_SAMPLES = 50
     NOISE_UPDATE_INTERVAL = 10  # seconds
-    SNR_MINIMUM = 12  # dB - Increased from 10 to reduce false positives from ambient noise
+    # SNR minimum set to 6 dB — lower than before so that sharp transient
+    # sounds (glass breaking, screaming) are not filtered out.  The previous
+    # value of 12 dB was too aggressive for impulsive threat sounds recorded
+    # in typical classroom/hallway environments.
+    SNR_MINIMUM = 6  # dB
 
 # Create directories
 os.makedirs(MODELS_DIR, exist_ok=True)

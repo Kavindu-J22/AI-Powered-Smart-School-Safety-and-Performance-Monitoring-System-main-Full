@@ -226,161 +226,165 @@
 @endpush
 
 @section('content')
-<div class="container-fluid py-4">
+@include('admin.layouts.sidebar')
+<main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg">
+    @include('admin.layouts.navbar')
+    <div class="container-fluid py-4">
 
-    {{-- Page Header --}}
-    <div class="form-page-header">
-        <div>
-            <h4><span class="material-symbols-outlined" style="vertical-align:middle;margin-right:8px;">edit</span>Edit Lesson</h4>
-            <p>Update lesson details — changes will reflect in AI homework generation</p>
-            <div style="margin-top:10px;">
-                <span class="edit-meta-badge"><span class="material-symbols-outlined" style="font-size:14px;">title</span>{{ Str::limit($lesson->title, 40) }}</span>
+        {{-- Page Header --}}
+        <div class="form-page-header">
+            <div>
+                <h4><span class="material-symbols-outlined" style="vertical-align:middle;margin-right:8px;">edit</span>Edit Lesson</h4>
+                <p>Update lesson details — changes will reflect in AI homework generation</p>
+                <div style="margin-top:10px;">
+                    <span class="edit-meta-badge"><span class="material-symbols-outlined" style="font-size:14px;">title</span>{{ Str::limit($lesson->title, 40) }}</span>
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{{ route('admin.management.lessons.show', $lesson->lesson_id) }}" class="btn btn-light btn-sm d-flex align-items-center gap-1" style="border-radius:10px;font-weight:600;">
+                    <span class="material-symbols-outlined" style="font-size:17px;">visibility</span> View
+                </a>
+                <a href="{{ route('admin.management.lessons.index') }}" class="btn btn-light btn-sm d-flex align-items-center gap-1" style="border-radius:10px;font-weight:600;">
+                    <span class="material-symbols-outlined" style="font-size:17px;">arrow_back</span> Back
+                </a>
             </div>
         </div>
-        <div class="d-flex gap-2 flex-wrap">
-            <a href="{{ route('admin.management.lessons.show', $lesson->lesson_id) }}" class="btn btn-light btn-sm d-flex align-items-center gap-1" style="border-radius:10px;font-weight:600;">
-                <span class="material-symbols-outlined" style="font-size:17px;">visibility</span> View
-            </a>
-            <a href="{{ route('admin.management.lessons.index') }}" class="btn btn-light btn-sm d-flex align-items-center gap-1" style="border-radius:10px;font-weight:600;">
-                <span class="material-symbols-outlined" style="font-size:17px;">arrow_back</span> Back
-            </a>
-        </div>
+
+        <form action="{{ route('admin.management.lessons.update', $lesson->lesson_id) }}" method="POST">
+            @csrf
+            @method('PUT')
+
+            {{-- Section 1: Classification & Status --}}
+            <div class="form-section-card">
+                <div class="form-section-header">
+                    <div class="section-icon"><span class="material-symbols-outlined">category</span></div>
+                    <div>
+                        <h6>Classification & Status</h6><small class="text-muted" style="font-size:.78rem;">Subject, grade and publication status</small>
+                    </div>
+                </div>
+                <div class="form-section-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="enhanced-label"><span class="material-symbols-outlined">subject</span>Subject <span class="text-danger">*</span></label>
+                            <select name="subject_id" class="form-control enhanced-input" required>
+                                <option value="">— Select Subject —</option>
+                                @foreach($subjects ?? [] as $subject)
+                                <option value="{{ $subject->id }}" {{ $lesson->subject_id == $subject->id ? 'selected' : '' }}>{{ $subject->subject_name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="enhanced-label"><span class="material-symbols-outlined">school</span>Grade Level <span class="text-danger">*</span></label>
+                            <select name="grade_level" class="form-control enhanced-input" required>
+                                @for($i = 6; $i <= 11; $i++)
+                                    <option value="{{ $i }}" {{ $lesson->grade_level == $i ? 'selected' : '' }}>Grade {{ $i }}</option>
+                                    @endfor
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="enhanced-label"><span class="material-symbols-outlined">toggle_on</span>Status <span class="text-danger">*</span></label>
+                            <select name="status" class="form-control enhanced-input" required>
+                                <option value="draft" {{ $lesson->status === 'draft'     ? 'selected' : '' }}>◷ Draft</option>
+                                <option value="published" {{ $lesson->status === 'published' ? 'selected' : '' }}>✓ Published</option>
+                                <option value="archived" {{ $lesson->status === 'archived'  ? 'selected' : '' }}>⊘ Archived</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="enhanced-label"><span class="material-symbols-outlined">schedule</span>Duration (min)</label>
+                            <input type="number" name="duration_minutes" class="form-control enhanced-input" value="{{ $lesson->duration_minutes ?? 60 }}" min="1">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Section 2: Lesson Details --}}
+            <div class="form-section-card">
+                <div class="form-section-header">
+                    <div class="section-icon"><span class="material-symbols-outlined">edit_note</span></div>
+                    <div>
+                        <h6>Lesson Details</h6><small class="text-muted" style="font-size:.78rem;">Title, unit and full lesson content</small>
+                    </div>
+                </div>
+                <div class="form-section-body">
+                    <div class="row">
+                        <div class="col-md-5 mb-3">
+                            <label class="enhanced-label"><span class="material-symbols-outlined">folder_open</span>Unit / Chapter <span class="text-danger">*</span></label>
+                            <input type="text" name="unit" class="form-control enhanced-input" value="{{ $lesson->unit }}" required>
+                        </div>
+                        <div class="col-md-7 mb-3">
+                            <label class="enhanced-label"><span class="material-symbols-outlined">title</span>Lesson Title <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control enhanced-input" value="{{ $lesson->title }}" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="enhanced-label"><span class="material-symbols-outlined">article</span>Lesson Content <span class="text-danger">*</span></label>
+                        <textarea name="content" class="form-control enhanced-input" rows="7" required>{{ $lesson->content }}</textarea>
+                        <div class="ai-hint">
+                            <span class="material-symbols-outlined">auto_awesome</span>
+                            <span>The AI homework engine re-uses this content — keep it accurate and detailed for best question quality.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Section 3: Topics & Outcomes --}}
+            <div class="form-section-card">
+                <div class="form-section-header">
+                    <div class="section-icon"><span class="material-symbols-outlined">checklist</span></div>
+                    <div>
+                        <h6>Topics & Learning Outcomes</h6><small class="text-muted" style="font-size:.78rem;">Key topics and what students will learn</small>
+                    </div>
+                </div>
+                <div class="form-section-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="enhanced-label"><span class="material-symbols-outlined">tag</span>Topics <small class="fw-normal text-muted">(comma-separated)</small></label>
+                            <input type="text" name="topics" class="form-control enhanced-input"
+                                value="{{ is_array($lesson->topics) ? implode(', ', $lesson->topics) : $lesson->topics }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="enhanced-label"><span class="material-symbols-outlined">emoji_events</span>Learning Outcomes <small class="fw-normal text-muted">(comma-separated)</small></label>
+                            <input type="text" name="learning_outcomes" class="form-control enhanced-input"
+                                value="{{ is_array($lesson->learning_outcomes) ? implode(', ', $lesson->learning_outcomes) : $lesson->learning_outcomes }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Section 4: Difficulty --}}
+            <div class="form-section-card">
+                <div class="form-section-header">
+                    <div class="section-icon"><span class="material-symbols-outlined">signal_cellular_alt</span></div>
+                    <div>
+                        <h6>Difficulty Level</h6><small class="text-muted" style="font-size:.78rem;">Select the appropriate difficulty for students</small>
+                    </div>
+                </div>
+                <div class="form-section-body">
+                    <input type="hidden" name="difficulty" id="difficultyInput" value="{{ $lesson->difficulty ?? 'beginner' }}" required>
+                    <div class="diff-option">
+                        <div class="diff-card beginner-card {{ ($lesson->difficulty ?? 'beginner') === 'beginner' ? 'selected-beginner' : '' }}" onclick="selectDiff('beginner',this)">
+                            <span class="material-symbols-outlined">sentiment_satisfied</span>Beginner
+                        </div>
+                        <div class="diff-card intermediate-card {{ ($lesson->difficulty ?? '') === 'intermediate' ? 'selected-intermediate' : '' }}" onclick="selectDiff('intermediate',this)">
+                            <span class="material-symbols-outlined">sentiment_neutral</span>Intermediate
+                        </div>
+                        <div class="diff-card advanced-card {{ ($lesson->difficulty ?? '') === 'advanced' ? 'selected-advanced' : '' }}" onclick="selectDiff('advanced',this)">
+                            <span class="material-symbols-outlined">sentiment_very_dissatisfied</span>Advanced
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Submit Bar --}}
+            <div class="submit-bar">
+                <button type="submit" class="btn-update">
+                    <span class="material-symbols-outlined" style="font-size:18px;">save</span> Update Lesson
+                </button>
+                <a href="{{ route('admin.management.lessons.show', $lesson->lesson_id) }}" class="btn btn-outline-secondary btn-cancel-form">Cancel</a>
+            </div>
+        </form>
     </div>
-
-    <form action="{{ route('admin.management.lessons.update', $lesson->lesson_id) }}" method="POST">
-        @csrf
-        @method('PUT')
-
-        {{-- Section 1: Classification & Status --}}
-        <div class="form-section-card">
-            <div class="form-section-header">
-                <div class="section-icon"><span class="material-symbols-outlined">category</span></div>
-                <div>
-                    <h6>Classification & Status</h6><small class="text-muted" style="font-size:.78rem;">Subject, grade and publication status</small>
-                </div>
-            </div>
-            <div class="form-section-body">
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label class="enhanced-label"><span class="material-symbols-outlined">subject</span>Subject <span class="text-danger">*</span></label>
-                        <select name="subject_id" class="form-control enhanced-input" required>
-                            <option value="">— Select Subject —</option>
-                            @foreach($subjects ?? [] as $subject)
-                            <option value="{{ $subject->id }}" {{ $lesson->subject_id == $subject->id ? 'selected' : '' }}>{{ $subject->subject_name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="enhanced-label"><span class="material-symbols-outlined">school</span>Grade Level <span class="text-danger">*</span></label>
-                        <select name="grade_level" class="form-control enhanced-input" required>
-                            @for($i = 6; $i <= 11; $i++)
-                                <option value="{{ $i }}" {{ $lesson->grade_level == $i ? 'selected' : '' }}>Grade {{ $i }}</option>
-                                @endfor
-                        </select>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="enhanced-label"><span class="material-symbols-outlined">toggle_on</span>Status <span class="text-danger">*</span></label>
-                        <select name="status" class="form-control enhanced-input" required>
-                            <option value="draft" {{ $lesson->status === 'draft'     ? 'selected' : '' }}>◷ Draft</option>
-                            <option value="published" {{ $lesson->status === 'published' ? 'selected' : '' }}>✓ Published</option>
-                            <option value="archived" {{ $lesson->status === 'archived'  ? 'selected' : '' }}>⊘ Archived</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <label class="enhanced-label"><span class="material-symbols-outlined">schedule</span>Duration (min)</label>
-                        <input type="number" name="duration_minutes" class="form-control enhanced-input" value="{{ $lesson->duration_minutes ?? 60 }}" min="1">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Section 2: Lesson Details --}}
-        <div class="form-section-card">
-            <div class="form-section-header">
-                <div class="section-icon"><span class="material-symbols-outlined">edit_note</span></div>
-                <div>
-                    <h6>Lesson Details</h6><small class="text-muted" style="font-size:.78rem;">Title, unit and full lesson content</small>
-                </div>
-            </div>
-            <div class="form-section-body">
-                <div class="row">
-                    <div class="col-md-5 mb-3">
-                        <label class="enhanced-label"><span class="material-symbols-outlined">folder_open</span>Unit / Chapter <span class="text-danger">*</span></label>
-                        <input type="text" name="unit" class="form-control enhanced-input" value="{{ $lesson->unit }}" required>
-                    </div>
-                    <div class="col-md-7 mb-3">
-                        <label class="enhanced-label"><span class="material-symbols-outlined">title</span>Lesson Title <span class="text-danger">*</span></label>
-                        <input type="text" name="title" class="form-control enhanced-input" value="{{ $lesson->title }}" required>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="enhanced-label"><span class="material-symbols-outlined">article</span>Lesson Content <span class="text-danger">*</span></label>
-                    <textarea name="content" class="form-control enhanced-input" rows="7" required>{{ $lesson->content }}</textarea>
-                    <div class="ai-hint">
-                        <span class="material-symbols-outlined">auto_awesome</span>
-                        <span>The AI homework engine re-uses this content — keep it accurate and detailed for best question quality.</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Section 3: Topics & Outcomes --}}
-        <div class="form-section-card">
-            <div class="form-section-header">
-                <div class="section-icon"><span class="material-symbols-outlined">checklist</span></div>
-                <div>
-                    <h6>Topics & Learning Outcomes</h6><small class="text-muted" style="font-size:.78rem;">Key topics and what students will learn</small>
-                </div>
-            </div>
-            <div class="form-section-body">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="enhanced-label"><span class="material-symbols-outlined">tag</span>Topics <small class="fw-normal text-muted">(comma-separated)</small></label>
-                        <input type="text" name="topics" class="form-control enhanced-input"
-                            value="{{ is_array($lesson->topics) ? implode(', ', $lesson->topics) : $lesson->topics }}">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="enhanced-label"><span class="material-symbols-outlined">emoji_events</span>Learning Outcomes <small class="fw-normal text-muted">(comma-separated)</small></label>
-                        <input type="text" name="learning_outcomes" class="form-control enhanced-input"
-                            value="{{ is_array($lesson->learning_outcomes) ? implode(', ', $lesson->learning_outcomes) : $lesson->learning_outcomes }}">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Section 4: Difficulty --}}
-        <div class="form-section-card">
-            <div class="form-section-header">
-                <div class="section-icon"><span class="material-symbols-outlined">signal_cellular_alt</span></div>
-                <div>
-                    <h6>Difficulty Level</h6><small class="text-muted" style="font-size:.78rem;">Select the appropriate difficulty for students</small>
-                </div>
-            </div>
-            <div class="form-section-body">
-                <input type="hidden" name="difficulty" id="difficultyInput" value="{{ $lesson->difficulty ?? 'beginner' }}" required>
-                <div class="diff-option">
-                    <div class="diff-card beginner-card {{ ($lesson->difficulty ?? 'beginner') === 'beginner' ? 'selected-beginner' : '' }}" onclick="selectDiff('beginner',this)">
-                        <span class="material-symbols-outlined">sentiment_satisfied</span>Beginner
-                    </div>
-                    <div class="diff-card intermediate-card {{ ($lesson->difficulty ?? '') === 'intermediate' ? 'selected-intermediate' : '' }}" onclick="selectDiff('intermediate',this)">
-                        <span class="material-symbols-outlined">sentiment_neutral</span>Intermediate
-                    </div>
-                    <div class="diff-card advanced-card {{ ($lesson->difficulty ?? '') === 'advanced' ? 'selected-advanced' : '' }}" onclick="selectDiff('advanced',this)">
-                        <span class="material-symbols-outlined">sentiment_very_dissatisfied</span>Advanced
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Submit Bar --}}
-        <div class="submit-bar">
-            <button type="submit" class="btn-update">
-                <span class="material-symbols-outlined" style="font-size:18px;">save</span> Update Lesson
-            </button>
-            <a href="{{ route('admin.management.lessons.show', $lesson->lesson_id) }}" class="btn btn-outline-secondary btn-cancel-form">Cancel</a>
-        </div>
-    </form>
-</div>
+</main>
 
 @push('scripts')
 <script>

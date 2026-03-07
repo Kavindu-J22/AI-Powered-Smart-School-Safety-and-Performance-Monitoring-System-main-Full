@@ -275,142 +275,147 @@
 @endpush
 
 @section('content')
-<div class="container-fluid py-4">
+@include('admin.layouts.sidebar')
+<main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg">
+    @include('admin.layouts.navbar')
+    <div class="container-fluid py-4">
 
-    {{-- Hero Header --}}
-    <div class="lesson-hero">
-        <h4><span class="material-symbols-outlined" style="vertical-align:middle;font-size:28px;margin-right:8px;">menu_book</span>Lesson Management</h4>
-        <p>Manage and organize curriculum lessons for AI-powered homework generation</p>
-        <div>
-            <span class="stat-chip"><span class="material-symbols-outlined">library_books</span>{{ ($lessons ?? collect())->total() ?? ($lessons ?? collect())->count() }} Total Lessons</span>
-            <span class="stat-chip"><span class="material-symbols-outlined">check_circle</span>{{ ($lessons ?? collect())->where('status','published')->count() }} Published</span>
-        </div>
-    </div>
-
-    {{-- Search & Filter Bar --}}
-    <div class="search-filter-bar d-flex align-items-center gap-3 flex-wrap">
-        <div class="search-input-wrap flex-grow-1" style="max-width:360px;">
-            <span class="material-symbols-outlined">search</span>
-            <input type="text" id="lessonSearch" class="form-control" placeholder="Search lessons by title or unit…">
-        </div>
-        <select id="statusFilter" class="form-select" style="width:160px;border-radius:10px;border:1px solid #e2e8f0;font-size:.88rem;background:#f8f9ff;">
-            <option value="">All Statuses</option>
-            <option value="published">Published</option>
-            <option value="draft">Draft</option>
-            <option value="archived">Archived</option>
-        </select>
-        <select id="gradeFilter" class="form-select" style="width:150px;border-radius:10px;border:1px solid #e2e8f0;font-size:.88rem;background:#f8f9ff;">
-            <option value="">All Grades</option>
-            @for($g=6;$g<=11;$g++)<option value="{{ $g }}">Grade {{ $g }}</option>@endfor
-        </select>
-        <div class="ms-auto">
-            <a href="{{ route('admin.management.lessons.create') }}" class="btn btn-primary d-flex align-items-center gap-1" style="border-radius:10px;font-weight:600;padding:8px 20px;">
-                <span class="material-symbols-outlined" style="font-size:18px;">add</span> Add Lesson
-            </a>
-        </div>
-    </div>
-
-    {{-- Table Card --}}
-    <div class="card lesson-table-card">
-        <div class="card-body px-0 pt-0 pb-0">
-            <div class="table-responsive">
-                <table class="table lesson-table mb-0" id="lessonsTable">
-                    <thead>
-                        <tr>
-                            <th style="padding-left:24px;">Lesson</th>
-                            <th>Subject</th>
-                            <th>Grade</th>
-                            <th>Difficulty</th>
-                            <th>Unit / Chapter</th>
-                            <th class="text-center">Status</th>
-                            <th class="text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($lessons ?? [] as $lesson)
-                        <tr data-title="{{ strtolower($lesson->title) }}" data-unit="{{ strtolower($lesson->unit) }}" data-status="{{ $lesson->status }}" data-grade="{{ $lesson->grade_level }}">
-                            <td style="padding-left:24px;">
-                                <div class="d-flex align-items-center">
-                                    <div class="lesson-icon-wrap">
-                                        <span class="material-symbols-outlined">menu_book</span>
-                                    </div>
-                                    <div class="lesson-title-cell">
-                                        <h6 class="mb-0">{{ Str::limit($lesson->title, 42) }}</h6>
-                                        <small>{{ count($lesson->topics ?? []) }} topics &bull; {{ $lesson->duration_minutes ?? 60 }} min</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="badge bg-gradient-info" style="font-size:.74rem;">{{ $lesson->subject->subject_name ?? 'N/A' }}</span>
-                            </td>
-                            <td>
-                                <span class="grade-badge">Grade {{ $lesson->grade_level }}</span>
-                            </td>
-                            <td>
-                                <span class="diff-badge diff-{{ $lesson->difficulty ?? 'beginner' }}">{{ ucfirst($lesson->difficulty ?? 'beginner') }}</span>
-                            </td>
-                            <td>
-                                <span class="text-sm text-secondary">{{ Str::limit($lesson->unit, 28) }}</span>
-                            </td>
-                            <td class="text-center">
-                                @if($lesson->status === 'published')
-                                <span class="status-pill status-published">✓ Published</span>
-                                @elseif($lesson->status === 'draft')
-                                <span class="status-pill status-draft">◷ Draft</span>
-                                @else
-                                <span class="status-pill status-archived">⊘ Archived</span>
-                                @endif
-                            </td>
-                            <td class="text-center">
-                                <div class="d-flex align-items-center justify-content-center gap-1">
-                                    <a href="{{ route('admin.management.lessons.show', $lesson->lesson_id) }}"
-                                        class="action-btn action-btn-view" title="View Lesson">
-                                        <span class="material-symbols-outlined">visibility</span>
-                                    </a>
-                                    <a href="{{ route('admin.management.lessons.edit', $lesson->lesson_id) }}"
-                                        class="action-btn action-btn-edit" title="Edit Lesson">
-                                        <span class="material-symbols-outlined">edit</span>
-                                    </a>
-                                    <form action="{{ route('admin.management.lessons.destroy', $lesson->lesson_id) }}"
-                                        method="POST" class="d-inline"
-                                        onsubmit="return confirm('Delete this lesson? This cannot be undone.')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="action-btn action-btn-delete" title="Delete Lesson">
-                                            <span class="material-symbols-outlined">delete</span>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="7">
-                                <div class="empty-state">
-                                    <div class="es-icon">
-                                        <span class="material-symbols-outlined">menu_book</span>
-                                    </div>
-                                    <h6 style="color:#2d3748;font-weight:700;">No Lessons Yet</h6>
-                                    <p class="text-muted mb-3" style="font-size:.88rem;">Start building your curriculum by adding the first lesson.</p>
-                                    <a href="{{ route('admin.management.lessons.create') }}" class="btn btn-primary" style="border-radius:10px;font-weight:600;">
-                                        <span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">add</span> Add First Lesson
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+        {{-- Hero Header --}}
+        <div class="lesson-hero">
+            <h4><span class="material-symbols-outlined" style="vertical-align:middle;font-size:28px;margin-right:8px;">menu_book</span>Lesson Management</h4>
+            <p>Manage and organize curriculum lessons for AI-powered homework generation</p>
+            <div>
+                <span class="stat-chip"><span class="material-symbols-outlined">library_books</span>{{ ($lessons ?? collect())->total() ?? ($lessons ?? collect())->count() }} Total Lessons</span>
+                <span class="stat-chip"><span class="material-symbols-outlined">check_circle</span>{{ ($lessons ?? collect())->where('status','published')->count() }} Published</span>
             </div>
+        </div>
 
-            @if(isset($lessons) && method_exists($lessons, 'hasPages') && $lessons->hasPages())
-            <div class="d-flex justify-content-center py-4">
-                {{ $lessons->links() }}
+        {{-- Search & Filter Bar --}}
+        <div class="search-filter-bar d-flex align-items-center gap-3 flex-wrap">
+            <div class="search-input-wrap flex-grow-1" style="max-width:360px;">
+                <span class="material-symbols-outlined">search</span>
+                <input type="text" id="lessonSearch" class="form-control" placeholder="Search lessons by title or unit…">
             </div>
-            @endif
+            <select id="statusFilter" class="form-select" style="width:160px;border-radius:10px;border:1px solid #e2e8f0;font-size:.88rem;background:#f8f9ff;">
+                <option value="">All Statuses</option>
+                <option value="published">Published</option>
+                <option value="draft">Draft</option>
+                <option value="archived">Archived</option>
+            </select>
+            <select id="gradeFilter" class="form-select" style="width:150px;border-radius:10px;border:1px solid #e2e8f0;font-size:.88rem;background:#f8f9ff;">
+                <option value="">All Grades</option>
+                @for($g=6;$g<=11;$g++)<option value="{{ $g }}">Grade {{ $g }}</option>@endfor
+            </select>
+            <div class="ms-auto">
+                <a href="{{ route('admin.management.lessons.create') }}" class="btn btn-primary d-flex align-items-center gap-1" style="border-radius:10px;font-weight:600;padding:8px 20px;">
+                    <span class="material-symbols-outlined" style="font-size:18px;">add</span> Add Lesson
+                </a>
+            </div>
+        </div>
+
+        {{-- Table Card --}}
+        <div class="card lesson-table-card">
+            <div class="card-body px-0 pt-0 pb-0">
+                <div class="table-responsive">
+                    <table class="table lesson-table mb-0" id="lessonsTable">
+                        <thead>
+                            <tr>
+                                <th style="padding-left:24px;">Lesson</th>
+                                <th>Subject</th>
+                                <th>Grade</th>
+                                <th>Difficulty</th>
+                                <th>Unit / Chapter</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($lessons ?? [] as $lesson)
+                            <tr data-title="{{ strtolower($lesson->title) }}" data-unit="{{ strtolower($lesson->unit) }}" data-status="{{ $lesson->status }}" data-grade="{{ $lesson->grade_level }}">
+                                <td style="padding-left:24px;">
+                                    <div class="d-flex align-items-center">
+                                        <div class="lesson-icon-wrap">
+                                            <span class="material-symbols-outlined">menu_book</span>
+                                        </div>
+                                        <div class="lesson-title-cell">
+                                            <h6 class="mb-0">{{ Str::limit($lesson->title, 42) }}</h6>
+                                            <small>{{ count($lesson->topics ?? []) }} topics &bull; {{ $lesson->duration_minutes ?? 60 }} min</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-gradient-info" style="font-size:.74rem;">{{ $lesson->subject->subject_name ?? 'N/A' }}</span>
+                                </td>
+                                <td>
+                                    <span class="grade-badge">Grade {{ $lesson->grade_level }}</span>
+                                </td>
+                                <td>
+                                    <span class="diff-badge diff-{{ $lesson->difficulty ?? 'beginner' }}">{{ ucfirst($lesson->difficulty ?? 'beginner') }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-sm text-secondary">{{ Str::limit($lesson->unit, 28) }}</span>
+                                </td>
+                                <td class="text-center">
+                                    @if($lesson->status === 'published')
+                                    <span class="status-pill status-published">✓ Published</span>
+                                    @elseif($lesson->status === 'draft')
+                                    <span class="status-pill status-draft">◷ Draft</span>
+                                    @else
+                                    <span class="status-pill status-archived">⊘ Archived</span>
+                                    @endif
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <a href="{{ route('admin.management.lessons.show', $lesson->lesson_id) }}"
+                                            class="action-btn action-btn-view" title="View Lesson">
+                                            <span class="material-symbols-outlined">visibility</span>
+                                        </a>
+                                        <a href="{{ route('admin.management.lessons.edit', $lesson->lesson_id) }}"
+                                            class="action-btn action-btn-edit" title="Edit Lesson">
+                                            <span class="material-symbols-outlined">edit</span>
+                                        </a>
+                                        <form action="{{ route('admin.management.lessons.destroy', $lesson->lesson_id) }}"
+                                            method="POST" class="d-inline"
+                                            onsubmit="return confirm('Delete this lesson? This cannot be undone.')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="action-btn action-btn-delete" title="Delete Lesson">
+                                                <span class="material-symbols-outlined">delete</span>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="7">
+                                    <div class="empty-state">
+                                        <div class="es-icon">
+                                            <span class="material-symbols-outlined">menu_book</span>
+                                        </div>
+                                        <h6 style="color:#2d3748;font-weight:700;">No Lessons Yet</h6>
+                                        <p class="text-muted mb-3" style="font-size:.88rem;">Start building your curriculum by adding the first lesson.</p>
+                                        <a href="{{ route('admin.management.lessons.create') }}" class="btn btn-primary" style="border-radius:10px;font-weight:600;">
+                                            <span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">add</span> Add First Lesson
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                @if(isset($lessons) && method_exists($lessons, 'hasPages') && $lessons->hasPages())
+                <div class="d-flex justify-content-center py-4">
+                    {{ $lessons->links() }}
+                </div>
+                @endif
+            </div>
         </div>
     </div>
-</div>
+
+</main>
 
 @push('scripts')
 <script>

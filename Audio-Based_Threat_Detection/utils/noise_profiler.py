@@ -107,16 +107,26 @@ class NoiseProfiler:
         return snr >= self.snr_minimum
     
     def get_adaptive_threshold(self, base_threshold: float) -> float:
-        """Get adaptive detection threshold based on noise level"""
+        """Get adaptive detection threshold based on noise level.
+
+        The previous multipliers were too aggressive: a moderate ambient
+        noise floor of ~0.13 would push the threshold up by ~68%, making
+        glass-breaking and screaming events (PANNs score 0.10–0.35) fail to
+        pass detection even when clearly present in the audio.
+
+        New formula keeps the adaptive lift modest:
+          noise_factor = noise_floor * 8   (cap 1.0)
+          adaptive     = base * (1 + noise_factor * 0.20)   → max ~+20% lift
+        This is enough to reduce false positives from constant ambient noise
+        while still allowing real threats through.
+        """
         if not self.is_calibrated or self.current_noise_floor is None:
             return base_threshold
 
-        # Increase threshold MORE aggressively in noisy environments
-        # This prevents false positives from ambient noise like fans, AC, etc.
-        noise_factor = min(self.current_noise_floor * 15, 2.0)  # Increased from 10 to 15, cap from 1.5 to 2.0
-        adaptive_threshold = base_threshold * (1 + noise_factor * 0.35)  # Increased from 0.2 to 0.35
+        noise_factor = min(self.current_noise_floor * 8, 1.0)   # cap at 1.0
+        adaptive_threshold = base_threshold * (1 + noise_factor * 0.20)
 
-        return min(adaptive_threshold, 0.98)  # Cap at 98% (increased from 95%)
+        return min(adaptive_threshold, 0.95)  # hard cap at 95%
     
     def reset(self) -> None:
         """Reset noise profile"""
