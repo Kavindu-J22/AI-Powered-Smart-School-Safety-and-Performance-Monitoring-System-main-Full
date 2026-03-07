@@ -80,27 +80,39 @@ class AttendanceService:
         """
         # Process frame
         results = self.engine.process_frame(image, mark_attendance=False)
-        
+
         if not results:
             return {
                 'success': False,
-                'message': 'No faces detected'
+                'message': 'No faces detected',
+                'faces': []
             }
-        
+
         marked = []
-        
+        # Build face list for UI overlay (bbox + confidence for ALL detected faces)
+        faces = []
+        for result in results:
+            bbox = list(result.face_bbox) if result.face_bbox else None
+            faces.append({
+                'bbox': bbox,
+                'confidence': round(float(result.confidence) * 100, 1),
+                'is_recognized': result.is_recognized,
+                'student_id': result.student_id,
+                'student_name': result.student_name,
+            })
+
         for result in results:
             if not result.is_recognized:
                 continue
-            
+
             if not result.is_live:
                 logger.warning(f"Spoof detected for {result.student_id}")
                 continue
-            
+
             # Check cooldown
             if not self._check_cooldown(result.student_id):
                 continue
-            
+
             # Mark in database
             record = self.db.mark_attendance(
                 student_id=result.student_id,
@@ -108,27 +120,29 @@ class AttendanceService:
                 liveness_score=result.liveness_score,
                 status=self._determine_status()
             )
-            
+
             if record:
                 marked.append({
                     'student_id': result.student_id,
                     'student_name': result.student_name,
                     'confidence': result.confidence,
-                    'status': record.status,
-                    'timestamp': record.timestamp.isoformat()
+                    'status': record['status'],
+                    'timestamp': record['timestamp'],
+                    'already_marked': record.get('already_marked', False),
                 })
-                
+
                 # Update cooldown
                 with self._lock:
                     self._last_marked[result.student_id] = datetime.now()
-                
+
                 # Send webhook
                 if self.webhook_url:
                     self._send_webhook(record)
-        
+
         return {
             'success': len(marked) > 0,
             'total_faces': len(results),
+            'faces': faces,
             'marked': marked
         }
     
@@ -159,7 +173,7 @@ class AttendanceService:
         else:
             return 'present'  # Afternoon
     
-    def _send_webhook(self, record: 'AttendanceRecord'):
+    def _send_webhook(self, record: dict):
         """Send webhook notification for attendance."""
         if not self.webhook_url:
             return
@@ -168,10 +182,10 @@ class AttendanceService:
             payload = {
                 'event': 'attendance_marked',
                 'data': {
-                    'student_id': record.student_id,
-                    'timestamp': record.timestamp.isoformat(),
-                    'status': record.status,
-                    'confidence': record.confidence
+                    'student_id': record['student_id'],
+                    'timestamp': record['timestamp'],
+                    'status': record['status'],
+                    'confidence': record.get('confidence', 0)
                 }
             }
             
@@ -187,7 +201,7 @@ class AttendanceService:
             )
             
             if response.status_code == 200:
-                logger.debug(f"Webhook sent for {record.student_id}")
+                logger.debug(f"Webhook sent for {record['student_id']}")
             else:
                 logger.warning(f"Webhook failed: {response.status_code}")
                 

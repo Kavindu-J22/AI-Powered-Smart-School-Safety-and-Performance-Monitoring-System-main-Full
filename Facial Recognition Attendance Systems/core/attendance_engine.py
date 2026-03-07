@@ -351,46 +351,7 @@ class AttendanceEngine:
             student_name = self.face_database.get_student_name(best_student_id)
             return best_student_id, student_name, best_confidence
 
-            return
-        
-        with self._lock:
-            now = datetime.now()
-            student_id = result.student_id
-            
-            # Check cooldown
-            last_time = self.last_attendance_time.get(student_id)
-            if last_time:
-                elapsed = (now - last_time).total_seconds()
-                if elapsed < self.attendance_cooldown:
-                    return  # Too soon to mark again
-            
-            # Determine status
-            hour = now.hour
-            if hour < 8:
-                status = 'early'
-            elif hour < 9:
-                status = 'present'
-            elif hour < 12:
-                status = 'late'
-            else:
-                status = 'present'  # Afternoon entry
-            
-            # Create record
-            record = AttendanceRecord(
-                student_id=student_id,
-                student_name=result.student_name,
-                timestamp=now,
-                confidence=result.confidence,
-                status=status
-            )
-            
-            self.attendance_records[student_id] = record
-            self.last_attendance_time[student_id] = now
-            
-            logger.info(
-                f"Attendance marked: {student_id} ({result.student_name}) "
-                f"- {status} at {now.strftime('%H:%M:%S')}"
-            )
+        return None, None, best_confidence
     
     def recognize_single(
         self,

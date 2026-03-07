@@ -242,4 +242,42 @@ class SettingsController extends Controller
             ], 500);
         }
     }
+
+    // AJAX endpoint for attendance timing settings
+    public function updateAttendanceTiming(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'checkin_deadline'  => 'required|date_format:H:i',
+                'checkout_time'     => 'required|date_format:H:i',
+                'late_after_minutes' => 'required|integer|min:0|max:480',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors'  => $validator->errors(),
+                ], 422);
+            }
+
+            $setting = Setting::first() ?? new Setting;
+            $setting->fill([
+                'checkin_deadline'   => $request->checkin_deadline,
+                'checkout_time'      => $request->checkout_time,
+                'late_after_minutes' => $request->late_after_minutes,
+            ]);
+            $setting->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Attendance timing settings updated successfully.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating attendance timing settings: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }

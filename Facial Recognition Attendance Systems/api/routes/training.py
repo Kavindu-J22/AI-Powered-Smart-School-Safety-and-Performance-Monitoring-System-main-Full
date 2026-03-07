@@ -73,17 +73,20 @@ def train_student(student_id):
         Training result
     """
     app = current_app._get_current_object()
-    
-    # Get student name
-    info = app.face_database.get_student_info(student_id)
-    name = info.get('name') if info else None
-    
-    result = app.face_trainer.train_student(student_id, student_name=name)
-    
-    if result.get('success'):
-        app.attendance_engine.refresh_database()
-    
-    return jsonify(result)
+    try:
+        # Get student name
+        info = app.face_database.get_student_info(student_id)
+        name = info.get('name') if info else None
+
+        result = app.face_trainer.train_student(student_id, student_name=name)
+
+        if result.get('success'):
+            app.attendance_engine.refresh_database()
+
+        return jsonify(result)
+    except Exception as exc:
+        logger.error(f"Training error for student {student_id}: {exc}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Training failed: {str(exc)}'}), 500
 
 
 @training_bp.route('/retrain/<student_id>', methods=['POST'])

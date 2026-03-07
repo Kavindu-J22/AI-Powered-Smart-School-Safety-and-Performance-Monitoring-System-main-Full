@@ -328,6 +328,7 @@ Route::middleware(['auth'])->group(function () {
                 Route::post('/academic', 'updateAcademic')->name('academic');
                 Route::post('/language', [SettingsController::class, 'updateLanguage'])->name('language');
                 Route::post('/attendance-mode', 'updateAttendanceMode')->name('attendance-mode');
+                Route::post('/attendance-timing', 'updateAttendanceTiming')->name('attendance-timing');
             });
         });
 

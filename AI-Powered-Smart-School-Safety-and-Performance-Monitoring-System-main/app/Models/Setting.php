@@ -52,6 +52,9 @@ class Setting extends Model
         'navbar_style',
         'auto_homework_enabled',
         'attendance_mode',
+        'checkin_deadline',
+        'checkout_time',
+        'late_after_minutes',
     ];
 
     protected $casts = [
@@ -62,6 +65,9 @@ class Setting extends Model
         'total_capacity' => 'integer',
         'school_start_time' => 'datetime:H:i',
         'school_end_time' => 'datetime:H:i',
+        'checkin_deadline' => 'string',
+        'checkout_time' => 'string',
+        'late_after_minutes' => 'integer',
     ];
 
     protected $attributes = [
@@ -84,6 +90,9 @@ class Setting extends Model
         'academic_year_end' => 'December',
         'school_start_time' => '08:00:00',
         'school_end_time' => '15:00:00',
+        'checkin_deadline' => '08:00:00',
+        'checkout_time' => '15:00:00',
+        'late_after_minutes' => 15,
     ];
 
     protected static function active()

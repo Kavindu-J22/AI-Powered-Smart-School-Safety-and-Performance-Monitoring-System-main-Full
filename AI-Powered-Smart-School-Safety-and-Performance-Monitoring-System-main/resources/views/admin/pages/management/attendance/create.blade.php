@@ -218,14 +218,18 @@
 
                                     <div class="row g-3">
                                         {{-- Main camera display --}}
-                                        <div class="col-lg-7">
+                                        <div class="col-lg-8">
                                             <div class="rfid-main-card rounded-4 overflow-hidden p-0 position-relative"
-                                                id="faceMainCard" style="min-height:320px;background:#111;">
+                                                id="faceMainCard" style="min-height:480px;background:#111;">
 
                                                 {{-- Live camera feed (shown when active) --}}
                                                 <video id="faceAttendVideo" class="w-100 d-none" autoplay playsinline
-                                                    style="display:block;object-fit:cover;height:320px;"></video>
+                                                    style="display:block;object-fit:cover;height:480px;"></video>
+                                                {{-- Hidden capture canvas (never shown) --}}
                                                 <canvas id="faceAttendCanvas" class="d-none"></canvas>
+                                                {{-- Bounding-box overlay canvas (always on top of video) --}}
+                                                <canvas id="faceBboxCanvas"
+                                                    style="position:absolute;top:0;left:0;width:100%;height:480px;pointer-events:none;"></canvas>
 
                                                 {{-- Waiting state --}}
                                                 <div id="faceStateWaiting"
@@ -243,48 +247,83 @@
                                                         recognition</p>
                                                 </div>
 
-                                                {{-- Result overlay (shown on top of video) --}}
+                                                {{-- Result overlay — shown on top of live video --}}
                                                 <div id="faceStateResult"
-                                                    class="d-none position-absolute bottom-0 start-0 w-100 p-3"
-                                                    style="background:linear-gradient(transparent,rgba(0,0,0,.8));">
+                                                    class="d-none position-absolute bottom-0 start-0 w-100"
+                                                    style="background:linear-gradient(transparent 0%,rgba(0,0,0,.92) 35%);padding:24px 20px 20px;">
+                                                    {{-- Already-marked banner --}}
+                                                    <div id="faceAlreadyBanner" class="d-none mb-2">
+                                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                            <span class="badge bg-warning text-dark fw-bold px-3 py-2"
+                                                                style="font-size:.85rem;border-radius:1rem;">
+                                                                <i class="material-symbols-rounded align-middle me-1"
+                                                                    style="font-size:1rem">task_alt</i>
+                                                                ALREADY MARKED TODAY
+                                                            </span>
+                                                            <span class="text-white-50 small">
+                                                                <i class="material-symbols-rounded align-middle"
+                                                                    style="font-size:.85rem">login</i>
+                                                                <span id="faceAlreadyCheckIn">—</span>
+                                                                &nbsp;&nbsp;
+                                                                <i class="material-symbols-rounded align-middle"
+                                                                    style="font-size:.85rem">logout</i>
+                                                                <span id="faceAlreadyCheckOut">—</span>
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                     <div class="d-flex align-items-center gap-3">
-                                                        <div class="rfid-avatar flex-shrink-0" id="faceAvatar">
-                                                            <span id="faceAvatarInitials"
-                                                                class="rfid-avatar-text">?</span>
+                                                        <div class="rfid-avatar rfid-avatar--in flex-shrink-0"
+                                                            id="faceAvatar" style="width:64px;height:64px;">
+                                                            <span id="faceAvatarInitials" class="rfid-avatar-text"
+                                                                style="font-size:1.4rem;">?</span>
                                                         </div>
                                                         <div class="flex-grow-1 text-white">
-                                                            <h5 class="fw-bold mb-0" id="faceResultName">—</h5>
-                                                            <p class="mb-1 small">
-                                                                <span class="badge bg-light text-dark border me-1"
+                                                            <h4 class="fw-bold mb-0 lh-1" id="faceResultName"
+                                                                style="font-size:1.35rem;">—</h4>
+                                                            <p class="mb-1 mt-1" style="font-size:.85rem;">
+                                                                <span
+                                                                    class="badge bg-light text-dark border fw-semibold me-1"
                                                                     id="faceResultCode">—</span>
-                                                                <span id="faceResultMeta">—</span>
+                                                                <span class="text-white-50" id="faceResultMeta">—</span>
                                                             </p>
-                                                            <span class="rfid-action-badge" id="faceResultAction">—</span>
+                                                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                                <span class="rfid-action-badge"
+                                                                    id="faceResultAction">—</span>
+                                                                <span class="badge bg-info text-white" id="faceResultConf"
+                                                                    style="font-size:.72rem;"></span>
+                                                            </div>
                                                         </div>
-                                                        <div class="text-center text-white">
-                                                            <div class="rfid-detail-label"
-                                                                style="color:rgba(255,255,255,.6)">Time</div>
-                                                            <div class="rfid-detail-value text-white" id="faceResultTime">
-                                                                —</div>
+                                                        <div class="text-center text-white flex-shrink-0">
+                                                            <div
+                                                                style="font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.5)">
+                                                                Time</div>
+                                                            <div class="fw-bold" style="font-size:1.1rem;"
+                                                                id="faceResultTime">—</div>
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 {{-- Error state --}}
                                                 <div id="faceStateError"
-                                                    class="d-none d-flex flex-column align-items-center justify-content-center h-100 py-5">
-                                                    <i class="material-symbols-rounded text-danger mb-2"
-                                                        style="font-size:3.5rem">error</i>
-                                                    <h5 class="fw-bold text-danger mb-1" id="faceErrorTitle">Recognition
-                                                        Failed</h5>
-                                                    <p class="text-white-50 small mb-0" id="faceErrorMsg">—</p>
+                                                    class="d-none position-absolute bottom-0 start-0 w-100 p-3"
+                                                    style="background:linear-gradient(transparent,rgba(0,0,0,.85));">
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <i class="material-symbols-rounded text-danger"
+                                                            style="font-size:2rem;">face_retouching_off</i>
+                                                        <div>
+                                                            <div class="fw-bold text-white small" id="faceErrorTitle">Not
+                                                                Recognised</div>
+                                                            <div class="text-white-50" style="font-size:.78rem;"
+                                                                id="faceErrorMsg">—</div>
+                                                        </div>
+                                                    </div>
                                                 </div>
 
                                             </div>
                                         </div>
 
                                         {{-- Scan history log --}}
-                                        <div class="col-lg-5">
+                                        <div class="col-lg-4">
                                             <div class="card border h-100">
                                                 <div
                                                     class="card-header py-2 d-flex align-items-center justify-content-between">
@@ -822,9 +861,9 @@
                 let _resetTimer = null;
                 let _scanCount = 0;
                 let _active = false;
-                const POLL_MS = 1500;
-                const CAPTURE_MS = 2000;
-                const RESET_MS = 6000;
+                const POLL_MS = 1000;
+                const CAPTURE_MS = 1000;
+                const RESET_MS = 5000;
 
                 /* ── start / stop / toggle ── */
                 async function start() {
@@ -851,6 +890,7 @@
                     document.getElementById('faceStateWaiting').classList.remove('face-overlay-waiting');
                     document.getElementById('faceWaitTitle').textContent = 'Camera stopped';
                     _showState('waiting');
+                    _drawFaceBoxes([], 640, 480);
                 }
 
                 function toggle() {
@@ -891,18 +931,96 @@
                     canvas.width = video.videoWidth || 640;
                     canvas.height = video.videoHeight || 480;
                     canvas.getContext('2d').drawImage(video, 0, 0);
-                    const imageB64 = canvas.toDataURL('image/jpeg', 0.8);
-                    fetch('{{ url('/api/face/attendance/recognize') }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ??
-                                '',
-                        },
-                        body: JSON.stringify({
-                            image: imageB64
-                        }),
-                    }).catch(() => {});
+                    const imageB64 = canvas.toDataURL('image/jpeg', 0.82);
+                    try {
+                        const resp = await fetch('{{ url('/api/face/attendance/recognize') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                    ?.content ?? '',
+                            },
+                            body: JSON.stringify({
+                                image: imageB64
+                            }),
+                        });
+                        const data = await resp.json();
+                        _drawFaceBoxes(data.faces || [], video.videoWidth || 640, video.videoHeight || 480);
+                        // Render result card immediately — don't wait for the poll cycle
+                        const scanData = data.data;
+                        if (scanData && scanData.scanned_at && scanData.scanned_at !== _lastScanAt) {
+                            _lastScanAt = scanData.scanned_at;
+                            _renderResult(scanData);
+                        }
+                    } catch (_) {
+                        _drawFaceBoxes([], 640, 480);
+                    }
+                }
+
+                /* ── draw bounding boxes + confidence on overlay canvas ── */
+                function _drawFaceBoxes(faces, vw, vh) {
+                    const overlay = document.getElementById('faceBboxCanvas');
+                    if (!overlay) return;
+                    overlay.width = overlay.offsetWidth || vw;
+                    overlay.height = overlay.offsetHeight || vh;
+                    const ctx = overlay.getContext('2d');
+                    ctx.clearRect(0, 0, overlay.width, overlay.height);
+                    if (!faces || !faces.length) return;
+                    const scaleX = overlay.width / vw;
+                    const scaleY = overlay.height / vh;
+                    for (const face of faces) {
+                        if (!face.bbox) continue;
+                        const [x1, y1, x2, y2] = face.bbox;
+                        const x = x1 * scaleX,
+                            y = y1 * scaleY;
+                        const w = (x2 - x1) * scaleX,
+                            h = (y2 - y1) * scaleY;
+                        const color = face.is_recognized ? '#00ff88' : '#ffc107';
+                        /* semi-transparent fill */
+                        ctx.fillStyle = face.is_recognized ?
+                            'rgba(0,255,136,0.07)' :
+                            'rgba(255,193,7,0.07)';
+                        ctx.fillRect(x, y, w, h);
+                        /* main box */
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(x, y, w, h);
+                        /* corner accents */
+                        const cLen = Math.min(w, h) * 0.22;
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 4;
+                        ctx.beginPath();
+                        ctx.moveTo(x, y + cLen);
+                        ctx.lineTo(x, y);
+                        ctx.lineTo(x + cLen, y);
+                        ctx.moveTo(x + w - cLen, y);
+                        ctx.lineTo(x + w, y);
+                        ctx.lineTo(x + w, y + cLen);
+                        ctx.moveTo(x, y + h - cLen);
+                        ctx.lineTo(x, y + h);
+                        ctx.lineTo(x + cLen, y + h);
+                        ctx.moveTo(x + w - cLen, y + h);
+                        ctx.lineTo(x + w, y + h);
+                        ctx.lineTo(x + w, y + h - cLen);
+                        ctx.stroke();
+                        /* label pill */
+                        const label = face.is_recognized ?
+                            `${face.student_name || ''}  ${face.confidence}%` :
+                            `${face.confidence}%`;
+                        ctx.font = 'bold 13px monospace';
+                        const tw = ctx.measureText(label).width;
+                        const pad = 6,
+                            lh = 20;
+                        const lx = x,
+                            ly = y > lh + 4 ? y - lh - 4 : y + h + 4;
+                        ctx.fillStyle = face.is_recognized ? 'rgba(0,255,136,0.88)' : 'rgba(255,193,7,0.88)';
+                        ctx.beginPath();
+                        ctx.roundRect(lx, ly, tw + pad * 2, lh, 4);
+                        ctx.fill();
+                        ctx.fillStyle = '#000';
+                        ctx.fillText(label, lx + pad, ly + lh - 4);
+                    }
                 }
 
                 /* ── status bar ── */
@@ -958,26 +1076,48 @@
                     document.getElementById('faceAvatarInitials').textContent = initials;
                     document.getElementById('faceResultTime').textContent = d.time || '—';
 
+                    // Confidence badge
+                    const confEl = document.getElementById('faceResultConf');
+                    if (d.confidence) {
+                        confEl.textContent = `${d.confidence} match`;
+                        confEl.classList.remove('d-none');
+                    } else {
+                        confEl.classList.add('d-none');
+                    }
+
                     const avatar = document.getElementById('faceAvatar');
                     const actionBadge = document.getElementById('faceResultAction');
+                    const alreadyBanner = document.getElementById('faceAlreadyBanner');
+
+                    // Reset already banner
+                    alreadyBanner.classList.add('d-none');
 
                     if (d.action === 'check_in') {
                         avatar.className = 'rfid-avatar rfid-avatar--in flex-shrink-0';
+                        avatar.style.cssText = 'width:64px;height:64px;';
                         actionBadge.className = 'rfid-action-badge rfid-action-badge--in';
                         actionBadge.innerHTML =
                             `<i class="material-symbols-rounded me-1 align-middle" style="font-size:1rem">login</i>CHECKED IN`;
                         _addToLog(d, 'in');
                     } else if (d.action === 'check_out') {
                         avatar.className = 'rfid-avatar rfid-avatar--out flex-shrink-0';
+                        avatar.style.cssText = 'width:64px;height:64px;';
                         actionBadge.className = 'rfid-action-badge rfid-action-badge--out';
                         actionBadge.innerHTML =
                             `<i class="material-symbols-rounded me-1 align-middle" style="font-size:1rem">logout</i>CHECKED OUT`;
                         _addToLog(d, 'out');
                     } else if (d.action === 'already_complete') {
                         avatar.className = 'rfid-avatar rfid-avatar--done flex-shrink-0';
+                        avatar.style.cssText = 'width:64px;height:64px;';
                         actionBadge.className = 'rfid-action-badge rfid-action-badge--done';
                         actionBadge.innerHTML =
-                            `<i class="material-symbols-rounded me-1 align-middle" style="font-size:1rem">task_alt</i>ALREADY RECORDED`;
+                            `<i class="material-symbols-rounded me-1 align-middle" style="font-size:1rem">task_alt</i>FULLY RECORDED`;
+                        // Show check-in / check-out times in banner
+                        document.getElementById('faceAlreadyCheckIn').textContent = d.check_in || '—';
+                        document.getElementById('faceAlreadyCheckOut').textContent = d.check_out || '—';
+                        // Override the Time field to show check-in time
+                        document.getElementById('faceResultTime').textContent = d.check_in || d.time || '—';
+                        alreadyBanner.classList.remove('d-none');
                         _addToLog(d, 'done');
                     } else {
                         document.getElementById('faceErrorTitle').textContent = 'Not Recognised';

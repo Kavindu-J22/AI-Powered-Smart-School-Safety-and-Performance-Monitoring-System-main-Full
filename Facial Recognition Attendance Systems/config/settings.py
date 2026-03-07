@@ -100,7 +100,7 @@ class Config:
         "http://localhost:8000/api"
     )
     DASHBOARD_API_KEY: str = os.getenv("DASHBOARD_API_KEY", "")
-    WEBHOOK_ENABLED: bool = True
+    WEBHOOK_ENABLED: bool = False  # Disabled: Laravel calls Python directly, webhook would deadlock single-threaded server
     WEBHOOK_URL: str = os.getenv(
         "WEBHOOK_URL",
         "http://localhost:8000/api/attendance/webhook"
@@ -110,7 +110,7 @@ class Config:
     # Training Settings
     # ===========================================
     AUGMENTATION_ENABLED: bool = True
-    AUGMENTATION_MULTIPLIER: int = 8  # Increased: more augmented variants = more robust embeddings
+    AUGMENTATION_MULTIPLIER: int = 4  # Balanced: 4× augmentation keeps training under ~40s on CPU
     TRAINING_EPOCHS: int = 10
     LEARNING_RATE: float = 0.001
     
@@ -141,7 +141,7 @@ class Config:
 @dataclass
 class DevelopmentConfig(Config):
     """Development environment configuration."""
-    DEBUG: bool = True
+    DEBUG: bool = False  # Keep False: Werkzeug debug mode returns HTML pages for exceptions, breaking JSON API
     LOG_LEVEL: str = "DEBUG"
 
 

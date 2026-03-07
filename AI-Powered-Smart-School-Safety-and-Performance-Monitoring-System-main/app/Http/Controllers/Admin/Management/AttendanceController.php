@@ -294,7 +294,7 @@ class AttendanceController extends Controller
                     'status' => $todayAttendance->status,
                     'check_in_time' => $todayAttendance->check_in_time?->format('H:i:s'),
                     'check_out_time' => $todayAttendance->check_out_time?->format('H:i:s'),
-                    'is_late' => $todayAttendance->is_late
+                    'is_late' => $todayAttendance->status === 'late'
                 ] : null
             ]
         ]);
@@ -346,7 +346,7 @@ class AttendanceController extends Controller
                     'data' => [
                         'student' => $student->first_name . ' ' . $student->last_name,
                         'time' => $attendance->check_in_time->format('H:i:s'),
-                        'is_late' => $attendance->is_late
+                        'is_late' => $attendance->status === 'late'
                     ]
                 ]);
             } elseif ($todayAttendance->status === 'present' && !$todayAttendance->check_out_time) {

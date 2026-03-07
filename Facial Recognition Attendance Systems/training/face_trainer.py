@@ -298,7 +298,7 @@ class FaceTrainer:
         filtered_embeddings = self.embedding_generator.filter_outliers(valid_embeddings)
         
         # Compute quality score
-        quality = self.embedding_generator.compute_quality_score(filtered_embeddings)
+        quality = float(self.embedding_generator.compute_quality_score(filtered_embeddings))
         result['quality_score'] = quality
         
         # Select diverse representative embeddings for multi-embedding matching.
@@ -335,7 +335,7 @@ class FaceTrainer:
             additional_info={
                 'trained_at': datetime.now().isoformat(),
                 'images_count': len(images),
-                'quality_score': quality,
+                'quality_score': float(quality),
                 'num_embeddings': len(representative_embeddings)
             }
         )

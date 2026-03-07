@@ -3,6 +3,7 @@
 namespace App\Repositories\Admin\Management;
 
 use App\Models\Attendance;
+use App\Models\Setting;
 use App\Models\Student;
 use App\Repositories\Interfaces\Admin\Management\AttendanceRepositoryInterface;
 use Carbon\Carbon;
@@ -91,6 +92,14 @@ class AttendanceRepository implements AttendanceRepositoryInterface
     {
         $today = Carbon::today();
 
+        // Use provided check_in_time or now()
+        $checkInTime = isset($data['check_in_time'])
+            ? Carbon::parse($data['check_in_time'])
+            : Carbon::now();
+
+        // Compute status based on admin-configured attendance timing
+        $status = $this->computeAttendanceStatus($checkInTime);
+
         // Check if already checked in today
         $existing = $this->model->where('student_id', $studentId)
             ->whereDate('attendance_date', $today)
@@ -100,8 +109,8 @@ class AttendanceRepository implements AttendanceRepositoryInterface
             // Update check-in time if needed
             if (!$existing->check_in_time) {
                 $existing->update([
-                    'check_in_time' => Carbon::now(),
-                    'status' => 'present',
+                    'check_in_time' => $checkInTime,
+                    'status' => $status,
                     ...$data
                 ]);
                 return $existing;
@@ -113,11 +122,28 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         return $this->create([
             'student_id' => $studentId,
             'attendance_date' => $today,
-            'check_in_time' => Carbon::now(),
-            'status' => 'present',
+            'check_in_time' => $checkInTime,
+            'status' => $status,
             'is_auto_recorded' => true,
             ...$data
         ]);
+    }
+
+    protected function computeAttendanceStatus(Carbon $checkInTime): string
+    {
+        $setting = Setting::first();
+        if (!$setting) {
+            return 'present';
+        }
+
+        $deadlineStr = $setting->checkin_deadline ?? '08:00:00';
+        $lateMinutes = (int) ($setting->late_after_minutes ?? 15);
+
+        // Build today's deadline with grace period
+        $deadline = Carbon::parse($checkInTime->format('Y-m-d') . ' ' . $deadlineStr);
+        $lateThreshold = $deadline->copy()->addMinutes($lateMinutes);
+
+        return $checkInTime->greaterThan($lateThreshold) ? 'late' : 'present';
     }
 
     public function checkOut($studentId, array $data = [])

@@ -97,8 +97,9 @@ class FaceRecognitionController extends Controller
     /** Train / retrain the face model for a single student. */
     public function trainStudent(Request $request, int $student_id): JsonResponse
     {
+        set_time_limit(300); // Allow up to 5 min for training
         try {
-            $resp = Http::timeout(120)->post(self::FACE_API_URL . "/api/training/train/{$student_id}");
+            $resp = Http::timeout(240)->post(self::FACE_API_URL . "/api/training/train/{$student_id}");
             return response()->json($resp->json(), $resp->status());
         } catch (\Exception $e) {
             Log::error('Face API training error', ['student_id' => $student_id, 'error' => $e->getMessage()]);
@@ -130,16 +131,32 @@ class FaceRecognitionController extends Controller
 
             $data = $resp->json();
 
-            // Face not recognised
-            if (empty($data['recognized']) || empty($data['student_id'])) {
+            // The Python service returns { success, total_faces, marked: [{student_id, ...}] }
+            // NOT { recognized, student_id } — check the correct fields.
+            $marked = $data['marked'] ?? [];
+            $faces  = $data['faces']  ?? [];   // [{bbox,confidence,is_recognized,student_name}]
+
+            if (empty($data['success']) || empty($marked)) {
+                $msg = $data['message'] ?? 'No face recognised';
+                // Provide more useful message when faces were seen but not matched
+                if (!empty($data['total_faces']) && $data['total_faces'] > 0) {
+                    $msg = 'Face detected but not recognised. Please re-register or retrain.';
+                }
                 return response()->json([
                     'success'    => false,
                     'recognized' => false,
-                    'message'    => $data['message'] ?? 'No face recognised',
+                    'message'    => $msg,
+                    'faces'      => $faces,
                 ]);
             }
 
-            $studentId = (int) $data['student_id'];
+            // student_id may be stored as "DASH_123" or plain "123" — strip prefix
+            $rawStudentId = $marked[0]['student_id'] ?? null;
+            if (!$rawStudentId) {
+                return response()->json(['success' => false, 'message' => 'Invalid student_id in recognition result']);
+            }
+            $studentId = (int) preg_replace('/^DASH_/i', '', (string) $rawStudentId);
+            $pythonConfidence = $marked[0]['confidence'] ?? ($data['confidence'] ?? null);
 
             // ── Find student in DB ───────────────────────────────────────────
             $student = $this->studentRepository->getById($studentId);
@@ -166,7 +183,7 @@ class FaceRecognitionController extends Controller
             $today = Carbon::today();
 
             // ── Load today's attendance ───────────────────────────────────────
-            $todayAttendance = $this->attendanceRepository->getByStudentAndDate($studentId, $today);
+            $todayAttendance = $this->attendanceRepository->getTodayAttendance($studentId);
 
             // ── Already fully recorded ───────────────────────────────────────
             if ($todayAttendance && $todayAttendance->check_in_time && $todayAttendance->check_out_time) {
@@ -183,35 +200,29 @@ class FaceRecognitionController extends Controller
                     'scanned_at'   => now()->toIso8601String(),
                     'success'      => false,
                     'source'       => 'face',
-                    'confidence'   => $data['confidence'] ?? null,
+                    'confidence'   => $pythonConfidence,
                 ];
                 Cache::put(self::LAST_SCAN_KEY, $result, now()->addMinutes(10));
-                return response()->json(['success' => false, 'action' => 'already_complete', 'data' => $result], 409);
+                return response()->json(['success' => false, 'action' => 'already_complete', 'data' => $result, 'faces' => $faces], 409);
             }
 
             // ── Check In ─────────────────────────────────────────────────────
             if (!$todayAttendance || !$todayAttendance->check_in_time) {
-                $attendance = $this->attendanceRepository->checkIn([
-                    'student_id'     => $studentId,
-                    'attendance_date' => $today,
-                    'check_in_time'  => now(),
-                    'notes'          => 'Face Recognition',
+                $attendance = $this->attendanceRepository->checkIn($studentId, [
+                    'notes' => 'Face Recognition',
                 ]);
-                $result = $this->buildScanData($student, $attendance, 'check_in', $data['confidence'] ?? null);
+                $result = $this->buildScanData($student, $attendance, 'check_in', $pythonConfidence);
                 Cache::put(self::LAST_SCAN_KEY, $result, now()->addMinutes(10));
-                return response()->json(['success' => true, 'action' => 'check_in', 'data' => $result]);
+                return response()->json(['success' => true, 'action' => 'check_in', 'data' => $result, 'faces' => $faces]);
             }
 
             // ── Check Out ────────────────────────────────────────────────────
-            $attendance = $this->attendanceRepository->checkOut([
-                'student_id'      => $studentId,
-                'attendance_date' => $today,
-                'check_out_time'  => now(),
-                'notes'           => 'Face Recognition',
+            $attendance = $this->attendanceRepository->checkOut($studentId, [
+                'notes' => 'Face Recognition',
             ]);
-            $result = $this->buildScanData($student, $attendance, 'check_out', $data['confidence'] ?? null);
+            $result = $this->buildScanData($student, $attendance, 'check_out', $pythonConfidence);
             Cache::put(self::LAST_SCAN_KEY, $result, now()->addMinutes(10));
-            return response()->json(['success' => true, 'action' => 'check_out', 'data' => $result]);
+            return response()->json(['success' => true, 'action' => 'check_out', 'data' => $result, 'faces' => $faces]);
         } catch (\Exception $e) {
             Log::error('Face recognition attendance error', ['error' => $e->getMessage()]);
             return response()->json(['success' => false, 'message' => 'Recognition error: ' . $e->getMessage()], 500);

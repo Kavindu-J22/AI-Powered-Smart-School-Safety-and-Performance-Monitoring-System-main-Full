@@ -412,10 +412,19 @@
                 const resp = await fetch(`{{ url('/api/face/training/train') }}/${_studentId}`, {
                     method: 'POST',
                     headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': _csrf()
                     },
                 });
-                const data = await resp.json();
+                let data;
+                try {
+                    data = await resp.json();
+                } catch (_jsonErr) {
+                    throw new Error(
+                        `Server returned a non-JSON response (HTTP ${resp.status}). Check the face service logs.`
+                        );
+                }
                 if (data.success === false) {
                     _showError(data.message || 'Training failed.');
                     return;

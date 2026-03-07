@@ -177,7 +177,7 @@ class AttendanceDB:
         try:
             now = datetime.now()
             today_str = now.strftime("%Y-%m-%d")
-            
+
             # Check if already marked today
             existing = session.query(AttendanceRecord).filter(
                 and_(
@@ -185,14 +185,26 @@ class AttendanceDB:
                     AttendanceRecord.date == today_str
                 )
             ).first()
-            
+
             if existing:
                 # Update time_out if already marked
                 existing.time_out = now
                 session.commit()
+                session.refresh(existing)
                 logger.info(f"Updated attendance (time_out) for {student_id}")
-                return existing
-            
+                # Extract data BEFORE session closes to avoid DetachedInstanceError
+                return {
+                    'id': existing.id,
+                    'student_id': existing.student_id,
+                    'status': existing.status,
+                    'timestamp': existing.timestamp.isoformat() if existing.timestamp else now.isoformat(),
+                    'date': existing.date,
+                    'time_in': existing.time_in.isoformat() if existing.time_in else None,
+                    'time_out': existing.time_out.isoformat() if existing.time_out else None,
+                    'confidence': float(existing.confidence) if existing.confidence is not None else 0.0,
+                    'already_marked': True,
+                }
+
             # Create new record
             record = AttendanceRecord(
                 student_id=student_id,
@@ -204,14 +216,25 @@ class AttendanceDB:
                 status=status,
                 image_path=image_path
             )
-            
+
             session.add(record)
             session.commit()
             session.refresh(record)
-            
+
             logger.info(f"Marked attendance for {student_id}: {status}")
-            return record
-            
+            # Extract data BEFORE session closes to avoid DetachedInstanceError
+            return {
+                'id': record.id,
+                'student_id': record.student_id,
+                'status': record.status,
+                'timestamp': record.timestamp.isoformat() if record.timestamp else now.isoformat(),
+                'date': record.date,
+                'time_in': record.time_in.isoformat() if record.time_in else None,
+                'time_out': record.time_out.isoformat() if record.time_out else None,
+                'confidence': float(record.confidence) if record.confidence is not None else 0.0,
+                'already_marked': False,
+            }
+
         except Exception as e:
             session.rollback()
             logger.error(f"Error marking attendance: {e}")

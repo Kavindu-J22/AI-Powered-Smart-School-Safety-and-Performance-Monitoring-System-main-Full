@@ -825,6 +825,69 @@
                     </div>
                 </div>
 
+                <!-- Attendance Timing Settings -->
+                <div class="col-12">
+                    <div class="card my-4 glassmorphism-card">
+                        <div class="card-header pb-0">
+                            <div class="d-flex align-items-center">
+                                <i class="material-symbols-rounded me-2">schedule</i>
+                                <h6 class="mb-0">Attendance Timing</h6>
+                            </div>
+                        </div>
+                        <div class="card-body p-3">
+                            <p class="text-sm text-muted mb-4">
+                                Define the expected check-in and check-out times. Students who check in after the
+                                grace period will be automatically marked as <strong>Late</strong>.
+                            </p>
+                            <form id="attendance-timing-form">
+                                @csrf
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <div class="input-group input-group-outline mb-3">
+                                            <label class="form-label">Check-in Deadline</label>
+                                            <input type="time" class="form-control" name="checkin_deadline" required
+                                                value="{{ $setting->checkin_deadline ?? '08:00' }}">
+                                        </div>
+                                        <small class="text-muted">Students must check in by this time.</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="input-group input-group-outline mb-3">
+                                            <label class="form-label">Expected Check-out Time</label>
+                                            <input type="time" class="form-control" name="checkout_time" required
+                                                value="{{ $setting->checkout_time ?? '15:00' }}">
+                                        </div>
+                                        <small class="text-muted">The scheduled end-of-school time.</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="input-group input-group-outline mb-3">
+                                            <label class="form-label">Grace Period (minutes)</label>
+                                            <input type="number" class="form-control" name="late_after_minutes"
+                                                min="0" max="480" required
+                                                value="{{ $setting->late_after_minutes ?? 15 }}">
+                                        </div>
+                                        <small class="text-muted">
+                                            Students arriving more than this many minutes after the check-in
+                                            deadline will be marked <strong>Late</strong>.
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="alert alert-info py-2 mt-2 mb-3" role="alert" style="font-size:.85rem">
+                                    <i class="material-symbols-rounded align-middle me-1" style="font-size:1rem">info</i>
+                                    Example: Deadline <strong>08:00</strong>, Grace period <strong>15 min</strong> →
+                                    arriving after <strong>08:15</strong> is marked Late. This rule applies to
+                                    Face Recognition, RFID, and Manual attendance entries.
+                                </div>
+                                <div class="text-end">
+                                    <button type="button" class="btn btn-primary" onclick="saveAttendanceTiming()">
+                                        <i class="material-symbols-rounded me-1">save</i>
+                                        Save Timing Settings
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Language Settings -->
                 <div class="col-12">
                     <div class="card my-4 glassmorphism-card">
@@ -2133,6 +2196,55 @@
                         }
                     } else {
                         alert(data.message || 'Failed to update attendance mode.');
+                    }
+                })
+                .catch(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = orig;
+                    alert('Network error — please try again.');
+                });
+        }
+
+        function saveAttendanceTiming() {
+            const form = document.getElementById('attendance-timing-form');
+            const deadline = form.querySelector('[name="checkin_deadline"]').value;
+            const checkout = form.querySelector('[name="checkout_time"]').value;
+            const lateMin  = form.querySelector('[name="late_after_minutes"]').value;
+
+            if (!deadline || !checkout || lateMin === '') {
+                alert('Please fill in all attendance timing fields.');
+                return;
+            }
+
+            const btn = form.querySelector('button[onclick="saveAttendanceTiming()"]');
+            const orig = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving…';
+
+            fetch('{{ route('admin.setup.settings.attendance-timing') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                    },
+                    body: JSON.stringify({
+                        checkin_deadline:   deadline,
+                        checkout_time:      checkout,
+                        late_after_minutes: parseInt(lateMin, 10),
+                    }),
+                })
+                .then(r => r.json())
+                .then(data => {
+                    btn.disabled = false;
+                    btn.innerHTML = orig;
+                    if (data.success) {
+                        if (typeof showToast === 'function') {
+                            showToast('Attendance timing settings saved.', 'success');
+                        } else {
+                            alert('Attendance timing settings updated successfully.');
+                        }
+                    } else {
+                        alert(data.message || 'Failed to save attendance timing settings.');
                     }
                 })
                 .catch(() => {
