@@ -160,7 +160,9 @@ class AttendanceController extends Controller
      */
     public function create()
     {
-        return view('admin.pages.management.attendance.create');
+        $setting = \App\Models\Setting::first();
+        $attendanceMode = $setting->attendance_mode ?? 'rfid';
+        return view('admin.pages.management.attendance.create', compact('attendanceMode'));
     }
 
     /**

@@ -196,4 +196,11 @@ class StudentRepository implements StudentRepositoryInterface
             ->where('student_code', $studentCode)
             ->first();
     }
+
+    public function findByRfidUid(string $rfidUid): ?Student
+    {
+        return $this->model->with(['user', 'schoolClass', 'parents'])
+            ->where('rfid_uid', $rfidUid)
+            ->first();
+    }
 }

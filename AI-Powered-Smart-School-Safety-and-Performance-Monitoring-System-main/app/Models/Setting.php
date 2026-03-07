@@ -51,6 +51,7 @@ class Setting extends Model
         'sidebar_style',
         'navbar_style',
         'auto_homework_enabled',
+        'attendance_mode',
     ];
 
     protected $casts = [
@@ -78,6 +79,7 @@ class Setting extends Model
         'sidebar_style' => 'modern',
         'navbar_style' => 'glass',
         'auto_homework_enabled' => false,
+        'attendance_mode' => 'rfid',
         'academic_year_start' => 'January',
         'academic_year_end' => 'December',
         'school_start_time' => '08:00:00',

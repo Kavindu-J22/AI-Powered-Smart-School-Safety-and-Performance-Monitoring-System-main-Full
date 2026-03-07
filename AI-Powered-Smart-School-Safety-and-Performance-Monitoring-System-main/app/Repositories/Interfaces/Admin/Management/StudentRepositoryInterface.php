@@ -66,4 +66,9 @@ interface StudentRepositoryInterface
      * Find student by student code
      */
     public function findByCode(string $studentCode): ?Student;
+
+    /**
+     * Find student by RFID UID
+     */
+    public function findByRfidUid(string $rfidUid): ?Student;
 }

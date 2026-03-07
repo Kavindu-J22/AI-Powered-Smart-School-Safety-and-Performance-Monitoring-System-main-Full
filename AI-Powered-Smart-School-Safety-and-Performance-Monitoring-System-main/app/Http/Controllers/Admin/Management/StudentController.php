@@ -20,8 +20,10 @@ use App\Services\UserService;
 use App\Services\ArduinoNFCService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
 class StudentController extends BaseManagementController
@@ -429,5 +431,89 @@ class StudentController extends BaseManagementController
                 'message' => 'Connection test failed: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // RFID Wristband Enrollment (UNO R3 + RC522 via serial bridge)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Start an RFID enrollment session.
+     * Returns a one-time token the browser will poll against.
+     */
+    public function startRfidEnrollment(Request $request)
+    {
+        // One enrollment at a time — clear any existing session
+        $oldKey = Cache::get('rfid_active_enrollment_key');
+        if ($oldKey) {
+            Cache::forget($oldKey);
+        }
+
+        $token    = Str::uuid()->toString();
+        $cacheKey = "rfid_enrollment_{$token}";
+
+        // Register both the token→key and the active-key pointer (5-min TTL)
+        Cache::put($cacheKey, null, now()->addMinutes(5));
+        Cache::put('rfid_active_enrollment_key', $cacheKey, now()->addMinutes(5));
+
+        return response()->json([
+            'success' => true,
+            'token'   => $token,
+        ]);
+    }
+
+    /**
+     * Assign a scanned RFID UID to a student.
+     *
+     * Payload: { "student_id": 42, "token": "uuid-…", "rfid_uid": "A1B2C3D4" }
+     *
+     * The browser can pass the UID directly (read from polling result) so we
+     * don't need a second round-trip.
+     */
+    public function assignRfid(Request $request)
+    {
+        $validated = $request->validate([
+            'student_id' => 'required|integer|exists:students,student_id',
+            'rfid_uid'   => 'required|string|max:50',
+        ]);
+
+        $uid = strtoupper(trim($validated['rfid_uid']));
+
+        // Ensure no other student has this card
+        $conflict = $this->repository->findByRfidUid($uid);
+        if ($conflict && $conflict->student_id !== (int) $validated['student_id']) {
+            return response()->json([
+                'success' => false,
+                'message' => "This wristband is already assigned to {$conflict->first_name} {$conflict->last_name} ({$conflict->student_code}).",
+            ], 409);
+        }
+
+        $this->repository->update($validated['student_id'], ['rfid_uid' => $uid]);
+
+        // Clean up enrollment cache
+        $cacheKey = Cache::get('rfid_active_enrollment_key');
+        if ($cacheKey) {
+            Cache::forget($cacheKey);
+            Cache::forget('rfid_active_enrollment_key');
+        }
+
+        return response()->json([
+            'success'  => true,
+            'message'  => 'RFID wristband assigned successfully.',
+            'rfid_uid' => $uid,
+        ]);
+    }
+
+    /**
+     * Remove the RFID wristband from a student.
+     */
+    public function removeRfid(Request $request, int $studentId)
+    {
+        $this->repository->update($studentId, ['rfid_uid' => null]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'RFID wristband removed.',
+        ]);
     }
 }

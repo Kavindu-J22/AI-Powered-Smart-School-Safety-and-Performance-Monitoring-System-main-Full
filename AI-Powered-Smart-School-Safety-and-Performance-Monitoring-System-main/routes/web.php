@@ -70,6 +70,10 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/classes-by-grade', 'getClassesByGrade')->name('classes-by-grade');
                 Route::post('/write-nfc', 'writeToNFC')->name('write-nfc');
                 Route::get('/test-arduino', 'testArduino')->name('test-arduino');
+                // RFID Wristband Enrollment (UNO R3 + serial bridge)
+                Route::post('/rfid/enrollment-start', 'startRfidEnrollment')->name('rfid.enrollment-start');
+                Route::post('/rfid/assign', 'assignRfid')->name('rfid.assign');
+                Route::delete('/{studentId}/rfid', 'removeRfid')->name('rfid.remove');
             });
 
             // Teachers Management
@@ -323,6 +327,7 @@ Route::middleware(['auth'])->group(function () {
                 Route::post('/theme', 'updateTheme')->name('theme');
                 Route::post('/academic', 'updateAcademic')->name('academic');
                 Route::post('/language', [SettingsController::class, 'updateLanguage'])->name('language');
+                Route::post('/attendance-mode', 'updateAttendanceMode')->name('attendance-mode');
             });
         });
 

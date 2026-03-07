@@ -4,6 +4,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AttendanceApiController;
 use App\Http\Controllers\Api\PerformancePredictionController;
+use App\Http\Controllers\Api\RfidController;
+use App\Http\Controllers\Api\FaceRecognitionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,6 +27,14 @@ Route::prefix('attendance')->name('api.attendance.')->group(function () {
     // RFID scan endpoint - receives attendance data from Arduino WiFi device
     Route::post('/rfid-scan', [AttendanceApiController::class, 'rfidScan'])
         ->name('rfid-scan');
+
+    // UID-based RFID scan from serial bridge (UNO R3 + RC522)
+    Route::post('/rfid-uid-scan', [AttendanceApiController::class, 'rfidUidScan'])
+        ->name('rfid-uid-scan');
+
+    // Poll for last RFID scan result (browser polls this in the attendance UI)
+    Route::get('/rfid-last-scan', [AttendanceApiController::class, 'getLastRfidScan'])
+        ->name('rfid-last-scan');
 
     // Device registration and health check
     Route::post('/device/register', [AttendanceApiController::class, 'registerDevice'])
@@ -70,3 +80,22 @@ Route::get('/students/{studentId}/prediction', [PerformancePredictionController:
     ->middleware(['auth', 'web'])
     ->withoutMiddleware('api')
     ->name('api.students.prediction.public');
+
+// Face Recognition proxy endpoints (no auth — same local-network trust model as RFID)
+Route::prefix('face')->name('api.face.')->group(function () {
+    Route::get('/health', [FaceRecognitionController::class, 'health'])->name('health');
+    Route::post('/registration/start', [FaceRecognitionController::class, 'startRegistration'])->name('registration.start');
+    Route::post('/registration/capture', [FaceRecognitionController::class, 'captureFrame'])->name('registration.capture');
+    Route::post('/training/train/{student_id}', [FaceRecognitionController::class, 'trainStudent'])->name('training.train');
+    Route::post('/attendance/recognize', [FaceRecognitionController::class, 'recognize'])->name('attendance.recognize');
+    Route::get('/attendance/last-scan', [FaceRecognitionController::class, 'getLastScan'])->name('attendance.last-scan');
+    Route::get('/mode', [FaceRecognitionController::class, 'currentMode'])->name('mode');
+});
+
+// RFID Enrollment endpoints (public — serial bridge + browser use these)
+Route::prefix('rfid')->name('api.rfid.')->group(function () {
+    // Serial bridge posts detected UID here (unified — server decides if enrollment or attendance)
+    Route::post('/scan', [RfidController::class, 'bridgeScan'])->name('bridge-scan');
+    // Browser polls this for pending enrollment UID
+    Route::get('/enrollment-poll/{token}', [RfidController::class, 'pollEnrollment'])->name('enrollment-poll');
+});

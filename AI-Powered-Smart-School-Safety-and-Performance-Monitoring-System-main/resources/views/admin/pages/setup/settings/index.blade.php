@@ -736,6 +736,95 @@
                     </div>
                 </div>
 
+                <!-- Attendance System Mode -->
+                <div class="col-12">
+                    <div class="card my-4 glassmorphism-card">
+                        <div class="card-header pb-0">
+                            <div class="d-flex align-items-center">
+                                <i class="material-symbols-rounded me-2">how_to_reg</i>
+                                <h6 class="mb-0">Attendance System</h6>
+                            </div>
+                        </div>
+                        <div class="card-body p-3">
+                            <p class="text-sm text-muted mb-4">
+                                Choose how the system records student attendance.
+                                Only one mode is active at a time. Switching modes does not delete existing records.
+                            </p>
+
+                            <div class="row g-3">
+                                {{-- RFID card --}}
+                                <div class="col-md-6">
+                                    <label
+                                        class="atm-card d-flex align-items-start gap-3 p-3 rounded-3 border cursor-pointer
+                                        {{ ($setting->attendance_mode ?? 'rfid') === 'rfid' ? 'atm-card--active border-primary' : 'border' }}"
+                                        for="atm-rfid" id="atm-card-rfid">
+                                        <input type="radio" id="atm-rfid" name="attendance_mode" value="rfid"
+                                            class="atm-radio d-none"
+                                            {{ ($setting->attendance_mode ?? 'rfid') === 'rfid' ? 'checked' : '' }}>
+                                        <div class="atm-card-icon flex-shrink-0 rounded-3 d-flex align-items-center justify-content-center"
+                                            style="width:52px;height:52px;background:#f3e8ff;">
+                                            <i class="material-symbols-rounded"
+                                                style="color:#7c3aed;font-size:1.8rem">contactless</i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                <strong>RFID Wristband</strong>
+                                                <span
+                                                    class="badge {{ ($setting->attendance_mode ?? 'rfid') === 'rfid' ? 'bg-success' : 'bg-secondary' }}"
+                                                    id="atm-rfid-badge">
+                                                    {{ ($setting->attendance_mode ?? 'rfid') === 'rfid' ? 'Active' : 'Inactive' }}
+                                                </span>
+                                            </div>
+                                            <p class="text-muted small mb-0 mt-1">
+                                                Students tap RFID wristbands on the card reader connected via Arduino.
+                                                Fast, contact-free and reliable.
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                {{-- Face Recognition card --}}
+                                <div class="col-md-6">
+                                    <label
+                                        class="atm-card d-flex align-items-start gap-3 p-3 rounded-3 border cursor-pointer
+                                        {{ ($setting->attendance_mode ?? 'rfid') === 'face_recognition' ? 'atm-card--active border-primary' : 'border' }}"
+                                        for="atm-face" id="atm-card-face">
+                                        <input type="radio" id="atm-face" name="attendance_mode"
+                                            value="face_recognition" class="atm-radio d-none"
+                                            {{ ($setting->attendance_mode ?? 'rfid') === 'face_recognition' ? 'checked' : '' }}>
+                                        <div class="atm-card-icon flex-shrink-0 rounded-3 d-flex align-items-center justify-content-center"
+                                            style="width:52px;height:52px;background:#dbeafe;">
+                                            <i class="material-symbols-rounded"
+                                                style="color:#2563eb;font-size:1.8rem">face_retouching_natural</i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                <strong>Facial Recognition</strong>
+                                                <span
+                                                    class="badge {{ ($setting->attendance_mode ?? 'rfid') === 'face_recognition' ? 'bg-success' : 'bg-secondary' }}"
+                                                    id="atm-face-badge">
+                                                    {{ ($setting->attendance_mode ?? 'rfid') === 'face_recognition' ? 'Active' : 'Inactive' }}
+                                                </span>
+                                            </div>
+                                            <p class="text-muted small mb-0 mt-1">
+                                                Camera identifies student faces automatically.
+                                                Requires face registration per student before use.
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div id="atm-save-wrap" class="text-end mt-4 d-none">
+                                <button type="button" class="btn btn-primary px-4" onclick="saveAttendanceMode()">
+                                    <i class="material-symbols-rounded me-1 align-middle" style="font-size:1rem">save</i>
+                                    Save Mode
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Language Settings -->
                 <div class="col-12">
                     <div class="card my-4 glassmorphism-card">
@@ -832,14 +921,14 @@
                 font - size: 18 px;
                 font - weight: 600;
                 color: #1e293b;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin-bottom: 8px;
-            }
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: 8px;
+                }
 
-            .section-subtitle {
-                color: # 64748 b;
+                .section-subtitle {
+                    color: # 64748 b;
                 margin: 0;
                 font - size: 14 px;
             }
@@ -865,28 +954,28 @@
                 transform: translateY(-4 px);
                 box - shadow: 0 12 px 32 px rgba(0, 0, 0, 0.12);
                 border - color: #06C167;
-            }
+                }
 
-            .preset-preview {
-                display: flex;
-                height: 40px;
-                border-radius: 8px;
-                overflow: hidden;
-                margin-bottom: 12px;
-            }
+                .preset-preview {
+                    display: flex;
+                    height: 40px;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    margin-bottom: 12px;
+                }
 
-            .color-strip {
-                flex: 1;
-                transition: transform 0.3s ease;
-            }
+                .color-strip {
+                    flex: 1;
+                    transition: transform 0.3s ease;
+                }
 
-            .preset-card:hover .color-strip {
-                transform: scale(1.05);
-            }
+                .preset-card:hover .color-strip {
+                    transform: scale(1.05);
+                }
 
-            .preset-name {
-                font-weight: 500;
-                color: # 374151;
+                .preset-name {
+                    font-weight: 500;
+                    color: # 374151;
                 font - size: 14 px;
                 text - align: center;
                 display: block;
@@ -904,12 +993,12 @@
 
             .color - input - card: hover {
                 border - color: #06C167;
-                box-shadow: 0 8px 24px rgba(6, 193, 103, 0.12);
-            }
+                    box-shadow: 0 8px 24px rgba(6, 193, 103, 0.12);
+                }
 
-            .color-label {
-                font-weight: 600;
-                color: # 1e293 b;
+                .color-label {
+                    font-weight: 600;
+                    color: # 1e293 b;
                 margin - bottom: 16 px;
                 display: flex;
                 align - items: center;
@@ -973,12 +1062,12 @@
 
             .color - hex - input: focus {
                 border - color: #06C167;
-                box-shadow: 0 0 0 3px rgba(6, 193, 103, 0.1);
-                background: white;
-            }
+                    box-shadow: 0 0 0 3px rgba(6, 193, 103, 0.1);
+                    background: white;
+                }
 
-            .color-description {
-                color: # 64748 b;
+                .color-description {
+                    color: # 64748 b;
                 font - size: 12 px;
                 line - height: 1.4;
             }
@@ -1000,11 +1089,11 @@
 
             .status - color - card.success - theme: hover {
                 border - color: #10B981;
-                box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
-            }
+                    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
+                }
 
-            .status-color-card.info-theme:hover {
-                border-color: # 3 B82F6;
+                .status-color-card.info-theme:hover {
+                    border-color: # 3 B82F6;
                 box - shadow: 0 8 px 24 px rgba(59, 130, 246, 0.15);
             }
 
@@ -1025,22 +1114,22 @@
                 margin - bottom: 16 px;
                 font - weight: 600;
                 color: #374151;
-            }
+                }
 
-            /* Gradient Configuration Cards */
-            .gradient-config-card {
-                background: white;
-                border-radius: 12px;
-                padding: 20px;
-                border: 1px solid rgba(226, 232, 240, 0.8);
-                transition: all 0.3s ease;
-                height: 100%;
-            }
+                /* Gradient Configuration Cards */
+                .gradient-config-card {
+                    background: white;
+                    border-radius: 12px;
+                    padding: 20px;
+                    border: 1px solid rgba(226, 232, 240, 0.8);
+                    transition: all 0.3s ease;
+                    height: 100%;
+                }
 
-            .gradient-config-card:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-                border-color: # 06 C167;
+                .gradient-config-card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+                    border-color: # 06 C167;
             }
 
             .gradient - header {
@@ -1050,17 +1139,17 @@
             .gradient - title {
                 font - weight: 600;
                 color: #1e293b;
-                margin-bottom: 4px;
-            }
+                    margin-bottom: 4px;
+                }
 
-            .gradient-controls {
-                margin-bottom: 20px;
-            }
+                .gradient-controls {
+                    margin-bottom: 20px;
+                }
 
-            .gradient-label {
-                font-size: 12px;
-                font-weight: 500;
-                color: # 64748 b;
+                .gradient-label {
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: # 64748 b;
                 margin - bottom: 8 px;
                 display: block;
             }
@@ -1978,4 +2067,96 @@
             }
         }
     </script>
+
+    {{-- ── Attendance Mode JS + CSS ─────────────────────────── --}}
+    <script>
+        (function() {
+            const cards = document.querySelectorAll('.atm-card');
+            const radios = document.querySelectorAll('.atm-radio');
+            const saveWrap = document.getElementById('atm-save-wrap');
+
+            cards.forEach(card => {
+                card.addEventListener('click', function() {
+                    const radio = this.querySelector('.atm-radio');
+                    if (!radio) return;
+                    // Deselect all
+                    cards.forEach(c => {
+                        c.classList.remove('atm-card--active', 'border-primary');
+                        c.classList.add('border');
+                    });
+                    // Select clicked
+                    this.classList.add('atm-card--active', 'border-primary');
+                    radio.checked = true;
+                    // Update badges
+                    document.getElementById('atm-rfid-badge').className = 'badge bg-secondary';
+                    document.getElementById('atm-rfid-badge').textContent = 'Inactive';
+                    document.getElementById('atm-face-badge').className = 'badge bg-secondary';
+                    document.getElementById('atm-face-badge').textContent = 'Inactive';
+                    const activeBadgeId = radio.value === 'rfid' ? 'atm-rfid-badge' : 'atm-face-badge';
+                    document.getElementById(activeBadgeId).className = 'badge bg-success';
+                    document.getElementById(activeBadgeId).textContent = 'Active';
+                    // Show save button
+                    saveWrap.classList.remove('d-none');
+                });
+            });
+        })();
+
+        function saveAttendanceMode() {
+            const checked = document.querySelector('.atm-radio:checked');
+            if (!checked) return;
+            const btn = document.querySelector('#atm-save-wrap .btn');
+            const orig = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving…';
+
+            fetch('{{ route('admin.setup.settings.attendance-mode') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                    },
+                    body: JSON.stringify({
+                        attendance_mode: checked.value
+                    }),
+                })
+                .then(r => r.json())
+                .then(data => {
+                    btn.disabled = false;
+                    btn.innerHTML = orig;
+                    if (data.success) {
+                        document.getElementById('atm-save-wrap').classList.add('d-none');
+                        // Show a toast if the page has one
+                        if (typeof showToast === 'function') {
+                            showToast('Attendance mode saved.', 'success');
+                        } else {
+                            alert('Attendance mode updated successfully.');
+                        }
+                    } else {
+                        alert(data.message || 'Failed to update attendance mode.');
+                    }
+                })
+                .catch(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = orig;
+                    alert('Network error — please try again.');
+                });
+        }
+    </script>
+
+    <style>
+        .atm-card {
+            cursor: pointer;
+            transition: border-color .2s, box-shadow .2s, background .2s;
+            background: #fff;
+        }
+
+        .atm-card:hover {
+            background: #f8f9ff;
+        }
+
+        .atm-card--active {
+            background: #eff6ff !important;
+            box-shadow: 0 0 0 2px #2563eb33;
+        }
+    </style>
 @endsection

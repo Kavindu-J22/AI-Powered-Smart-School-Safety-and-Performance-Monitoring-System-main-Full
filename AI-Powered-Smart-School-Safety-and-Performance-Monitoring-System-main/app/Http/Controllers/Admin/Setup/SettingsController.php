@@ -34,7 +34,7 @@ class SettingsController extends Controller
             'school_type' => 'nullable|in:Primary,Secondary,Combined,International',
             'school_motto' => 'nullable|string|max:500',
             'principal_name' => 'nullable|string|max:255',
-            'established_year' => 'nullable|integer|min:1800|max:'.date('Y'),
+            'established_year' => 'nullable|integer|min:1800|max:' . date('Y'),
             'total_capacity' => 'nullable|integer|min:1',
             'website_url' => 'nullable|url|max:255',
         ]);
@@ -72,7 +72,7 @@ class SettingsController extends Controller
                 'school_type' => 'nullable|in:Primary,Secondary,Combined,International',
                 'school_motto' => 'nullable|string|max:500',
                 'principal_name' => 'nullable|string|max:255',
-                'established_year' => 'nullable|integer|min:1800|max:'.date('Y'),
+                'established_year' => 'nullable|integer|min:1800|max:' . date('Y'),
                 'total_capacity' => 'nullable|integer|min:1',
                 'website_url' => 'nullable|url|max:255',
                 'logo' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
@@ -204,6 +204,41 @@ class SettingsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error updating academic settings: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // AJAX endpoint to switch attendance mode (rfid / face_recognition)
+    public function updateAttendanceMode(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'attendance_mode' => 'required|in:rfid,face_recognition',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid attendance mode.',
+                    'errors'  => $validator->errors(),
+                ], 422);
+            }
+
+            $setting = Setting::first() ?? new Setting;
+            $setting->attendance_mode = $request->attendance_mode;
+            $setting->save();
+
+            $label = $request->attendance_mode === 'rfid' ? 'RFID Wristband' : 'Facial Recognition';
+
+            return response()->json([
+                'success' => true,
+                'message' => "Attendance mode switched to {$label}.",
+                'mode'    => $request->attendance_mode,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating attendance mode: ' . $e->getMessage(),
             ], 500);
         }
     }

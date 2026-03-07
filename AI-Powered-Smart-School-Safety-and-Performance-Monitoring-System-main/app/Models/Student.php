@@ -41,6 +41,7 @@ class Student extends Model
         'home_phone',
         'mobile_phone',
         'email',
+        'rfid_uid',
     ];
 
     protected $casts = [

@@ -504,4 +504,32 @@ class AttendanceApiController extends Controller
             ]
         ]);
     }
+
+    /**
+     * Handle RFID scan by raw hardware UID (UNO R3 + RC522 via serial bridge).
+     *
+     * Payload: { "uid": "A1B2C3D4", "device_id": "DOOR_01" }
+     *
+     * This is an alias that delegates to RfidController to avoid duplication.
+     */
+    public function rfidUidScan(Request $request): JsonResponse
+    {
+        $rfidController = app(\App\Http\Controllers\Api\RfidController::class);
+        return $rfidController->bridgeScan($request);
+    }
+
+    /**
+     * Return the most recent RFID scan result (browser polls this in the
+     * attendance-create RFID tab).
+     */
+    public function getLastRfidScan(): JsonResponse
+    {
+        $result = Cache::get('rfid_last_scan');
+
+        if (! $result) {
+            return response()->json(['found' => false]);
+        }
+
+        return response()->json(['found' => true, 'data' => $result]);
+    }
 }
