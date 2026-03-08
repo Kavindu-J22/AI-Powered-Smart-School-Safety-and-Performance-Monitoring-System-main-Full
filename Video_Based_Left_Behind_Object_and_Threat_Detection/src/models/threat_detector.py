@@ -61,6 +61,9 @@ class ThreatDetector:
         self._prev_gray: Optional[np.ndarray] = None
         # Frame buffer for add_frame() API compatibility
         self.frame_buffer: deque = deque(maxlen=clip_length)
+        # Track previous person count so we can flush stale history when
+        # the scene drops from ≥2 people to <2 (avoids lingering false alerts)
+        self._prev_person_count: int = 0
 
         self.pose_model = self._load_pose_model()
 
@@ -262,22 +265,46 @@ class ThreatDetector:
             # Pose estimation (persons only — COCO class 0)
             results = self.pose_model(frame, verbose=False, classes=[0])
             persons = self._extract_persons(results)
+            n_persons = len(persons)
 
-            # Individual heuristic scores
-            s_prox   = self._score_proximity(persons)
-            s_arm    = self._score_arm_raise(persons)
-            s_fall   = self._score_fall(persons)
-            s_motion = self._score_motion(frame_gray, persons)
+            # ── Person-count guard ─────────────────────────────────────────
+            # Arm-raise and motion are normal, innocent behaviours for a
+            # single person (waving, walking, exercising).  They must NOT
+            # contribute to the threat score unless at least 2 people are
+            # in the scene.  Only fall detection applies to a lone person.
+            #
+            # When the scene drops from ≥2 people back to <2 we also flush
+            # the score history so stale high scores don't keep an alert
+            # alive after the situation resolved.
+            if n_persons < 2 and self._prev_person_count >= 2:
+                self._score_history.clear()
+                logger.debug("Person count dropped below 2 — score history cleared")
 
-            # Weighted blend
-            blended = (0.35 * s_prox + 0.25 * s_motion + 0.20 * s_arm + 0.20 * s_fall)
+            self._prev_person_count = n_persons
 
-            # Boost when proximity + motion both fire (most likely a fight).
-            # Lowered trigger thresholds (0.2) and raised multiplier (1.6) so
-            # that two people close together with any noticeable movement is
-            # flagged even before individual scores cross the main threshold.
-            if s_prox > 0.2 and s_motion > 0.2:
-                blended = min(blended * 1.6, 1.0)
+            # Fall score — valid for any person count (a lone person can fall)
+            s_fall = self._score_fall(persons)
+
+            if n_persons >= 2:
+                # Full multi-person scoring
+                s_prox   = self._score_proximity(persons)
+                s_arm    = self._score_arm_raise(persons)
+                s_motion = self._score_motion(frame_gray, persons)
+
+                # Weighted blend for interaction threats
+                blended = (0.40 * s_prox + 0.25 * s_motion + 0.15 * s_arm + 0.20 * s_fall)
+
+                # Boost when proximity + motion both fire (most likely a fight)
+                if s_prox > 0.2 and s_motion > 0.2:
+                    blended = min(blended * 1.6, 1.0)
+            else:
+                # Single person (or no persons): only fall detection
+                s_prox   = 0.0
+                s_arm    = 0.0
+                s_motion = self._score_motion(frame_gray, persons)  # still update optical flow
+                # Blended = fall score only; motion is computed to keep prev_gray
+                # updated but does NOT count toward the threat score here
+                blended = s_fall
 
             # Temporal smoothing
             self._score_history.append(blended)
@@ -286,34 +313,41 @@ class ThreatDetector:
             # Update previous frame for next optical-flow call
             self._prev_gray = frame_gray
 
-            # Classify threat type
+            # ── Classify threat type ───────────────────────────────────────
+            # fighting / pushing / aggressive_behavior require ≥2 people.
+            # fall_detected is the only single-person threat.
             threat_type = None
             if smoothed >= self.confidence_threshold:
                 if s_fall > 0.5:
                     threat_type = "fall_detected"
-                elif s_prox > 0.2 and s_motion > 0.2:
+                elif n_persons >= 2 and s_prox > 0.2 and s_motion > 0.2:
                     threat_type = "fighting"
-                elif s_arm > 0.3:
+                elif n_persons >= 2 and s_arm > 0.3:
                     threat_type = "aggressive_behavior"
-                else:
+                elif n_persons >= 2:
                     threat_type = "pushing"
+                # If n_persons < 2 and score is high but no fall → do NOT alert
+                # (stale history artefact — let it decay naturally)
 
             all_scores = {
-                "proximity": round(s_prox, 3),
-                "arm_raise": round(s_arm,  3),
-                "motion":    round(s_motion, 3),
-                "fall":      round(s_fall, 3),
-                "blended":   round(blended, 3),
-                "smoothed":  round(smoothed, 3),
+                "proximity":    round(s_prox, 3),
+                "arm_raise":    round(s_arm,  3),
+                "motion":       round(s_motion, 3),
+                "fall":         round(s_fall, 3),
+                "blended":      round(blended, 3),
+                "smoothed":     round(smoothed, 3),
+                "people_count": n_persons,
             }
 
+            is_threat = (smoothed >= self.confidence_threshold) and (threat_type is not None)
+
             return {
-                'is_threat':    smoothed >= self.confidence_threshold,
+                'is_threat':    is_threat,
                 'threat_type':  threat_type,
                 'confidence':   round(smoothed, 4),
                 'all_scores':   all_scores,
-                'status':       'threat' if smoothed >= self.confidence_threshold else 'normal',
-                'people_count': len(persons),
+                'status':       'threat' if is_threat else 'normal',
+                'people_count': n_persons,
             }
 
         except Exception as exc:
@@ -335,6 +369,7 @@ class ThreatDetector:
         self.frame_buffer.clear()
         self._score_history.clear()
         self._prev_gray = None
+        self._prev_person_count = 0
 
     def preprocess_frame(self, frame: np.ndarray, size=(224, 224)) -> np.ndarray:
         """Kept for API compatibility."""
