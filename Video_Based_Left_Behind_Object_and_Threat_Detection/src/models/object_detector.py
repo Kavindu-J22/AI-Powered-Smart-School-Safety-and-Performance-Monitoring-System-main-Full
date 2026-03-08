@@ -476,8 +476,11 @@ class LeftBehindObjectDetector:
         -----
         For every non-person detection, compute how much of its area is
         contained inside any person bbox.  If the containment fraction
-        exceeds 45 %, the detection is suppressed.  Person detections
-        themselves are always kept (so the tracker can use them).
+        exceeds 85 %, the detection is suppressed.  This high threshold
+        keeps objects that people are carrying (bags, phones, bottles)
+        while still removing pure face/head misclassifications.
+        Person detections themselves are always kept (so the tracker can
+        use them).
         """
         person_boxes = [
             d['bbox'] for d in detections
@@ -502,7 +505,7 @@ class LeftBehindObjectDetector:
                 if ix2 <= ix1 or iy2 <= iy1:
                     continue
                 containment = (ix2 - ix1) * (iy2 - iy1) / det_area
-                if containment >= 0.60:
+                if containment >= 0.85:
                     logger.debug(
                         f"Person-overlap suppressed '{det['class_name']}' "
                         f"(containment={containment:.2f}): {det['bbox']}"

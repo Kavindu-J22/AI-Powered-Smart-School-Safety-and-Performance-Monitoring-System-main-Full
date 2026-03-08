@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class TrackedObject:
     """Represents a tracked object with temporal information"""
-    
+
     def __init__(
         self,
         track_id: int,
@@ -22,13 +22,18 @@ class TrackedObject:
         class_id: int,
         class_name: str,
         confidence: float,
-        timestamp: datetime
+        timestamp: datetime,
+        is_unknown: bool = False,
+        original_class_name: str = "",
     ):
         self.track_id = track_id
         self.bbox = bbox
         self.class_id = class_id
         self.class_name = class_name
         self.confidence = confidence
+        # Preserve detector metadata so the frontend can style unknowns differently
+        self.is_unknown = is_unknown
+        self.original_class_name = original_class_name or class_name
         
         # Temporal information
         self.first_seen = timestamp
@@ -57,18 +62,24 @@ class TrackedObject:
         self,
         bbox: List[float],
         confidence: float,
-        timestamp: datetime
+        timestamp: datetime,
+        is_unknown: bool = False,
+        original_class_name: str = "",
     ):
         """Update tracked object with new detection"""
         self.bbox = bbox
         self.confidence = confidence
         self.last_seen = timestamp
         self.last_update = timestamp
-        
+        # Refresh detector metadata on every update so the freshest label wins
+        self.is_unknown = is_unknown
+        if original_class_name:
+            self.original_class_name = original_class_name
+
         # Update position history
         center = self._get_center(bbox)
         self.position_history.append(center)
-        
+
         # Limit history length
         if len(self.position_history) > self.max_history_length:
             self.position_history.pop(0)
@@ -320,7 +331,9 @@ class ObjectTracker:
                 self.tracks[best_track_id].update(
                     detection['bbox'],
                     detection['confidence'],
-                    timestamp
+                    timestamp,
+                    is_unknown=detection.get('is_unknown', False),
+                    original_class_name=detection.get('original_class_name', ''),
                 )
                 matched_tracks.add(best_track_id)
                 matched_detections.add(det_idx)
@@ -341,7 +354,9 @@ class ObjectTracker:
                     class_id=detection['class_id'],
                     class_name=detection['class_name'],
                     confidence=detection['confidence'],
-                    timestamp=timestamp
+                    timestamp=timestamp,
+                    is_unknown=detection.get('is_unknown', False),
+                    original_class_name=detection.get('original_class_name', detection['class_name']),
                 )
 
                 self.tracks[track_id] = new_track

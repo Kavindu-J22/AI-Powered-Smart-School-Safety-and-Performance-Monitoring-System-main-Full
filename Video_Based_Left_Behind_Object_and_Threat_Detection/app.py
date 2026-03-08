@@ -224,6 +224,8 @@ def create_app():
                     {
                         'bbox': obj.bbox.tolist() if hasattr(obj.bbox, 'tolist') else obj.bbox,
                         'class_name': obj.class_name,
+                        'original_class_name': obj.original_class_name,
+                        'is_unknown': obj.is_unknown,
                         'confidence': float(obj.confidence),
                         'track_id': obj.track_id,
                         'is_left_behind': obj.is_left_behind,
@@ -351,6 +353,8 @@ def create_app():
                         {
                             'bbox': obj.bbox.tolist() if hasattr(obj.bbox, 'tolist') else obj.bbox,
                             'class_name': obj.class_name,
+                            'original_class_name': obj.original_class_name,
+                            'is_unknown': obj.is_unknown,
                             'confidence': float(obj.confidence),
                             'track_id': obj.track_id,
                             'is_left_behind': obj.is_left_behind,

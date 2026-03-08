@@ -134,8 +134,8 @@ threat_detection:
     type: "pose"                    # YOLOv8n-pose + optical flow heuristics
     weights: null                   # no custom weights needed — uses yolov8n-pose.pt
     input_size: [640, 640]
-    clip_length: 16                 # smoothing history window (frames)
-    confidence_threshold: 0.55     # blended heuristic score threshold
+    clip_length: 8                  # smoothing history window (frames) — shorter = faster response
+    confidence_threshold: 0.40     # blended heuristic score threshold — lower = more sensitive
 
   # Threat categories detected by the pose-based system
   threat_classes:
