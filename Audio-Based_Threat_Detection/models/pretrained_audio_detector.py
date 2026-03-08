@@ -107,11 +107,12 @@ class PANNsAudioDetector:
     """Real-time non-speech threat detector using PANNS CNN14."""
 
     def __init__(self):
-        self.model       = None
-        self.labels      = []
-        self.threat_idx  = {}   # class → [audioset_indices]
-        self.initialized = False
-        self.target_sr   = 32000
+        self.model           = None
+        self.labels          = []
+        self.threat_idx      = {}   # class → [audioset_indices]
+        self.initialized     = False
+        self.target_sr       = 32000
+        self._resampler_cache = {}  # (orig_sr, target_sr) → torchaudio.transforms.Resample
 
     # ── public ────────────────────────────────────────────────────────────
     def initialize(self) -> bool:
@@ -163,7 +164,7 @@ class PANNsAudioDetector:
             import torch
             audio = audio.astype(np.float32)
             if src_sr != self.target_sr:
-                audio = self._resample(audio, src_sr, self.target_sr)
+                audio = self._resample_cached(audio, src_sr, self.target_sr)
             batch = torch.from_numpy(audio[np.newaxis, :])   # (1, T)
             with torch.no_grad():
                 self.model.eval()
@@ -294,10 +295,39 @@ class PANNsAudioDetector:
         ckpt = torch.load(str(MODEL_PATH), map_location='cpu')
         self.model.load_state_dict(ckpt['model'])
         self.model.eval()
+        # Pre-warm the resampler cache for the common 16kHz→32kHz path
+        self._get_or_create_resampler(16000, self.target_sr)
         print(f"[PANNs] CNN14 loaded ({n} AudioSet classes).")
+
+    def _get_or_create_resampler(self, orig_sr: int, target_sr: int):
+        """Return a cached torchaudio.transforms.Resample for the given rate pair."""
+        key = (orig_sr, target_sr)
+        if key not in self._resampler_cache:
+            try:
+                import torchaudio
+                self._resampler_cache[key] = torchaudio.transforms.Resample(
+                    orig_freq=orig_sr, new_freq=target_sr
+                )
+            except Exception:
+                self._resampler_cache[key] = None  # mark as unavailable
+        return self._resampler_cache[key]
+
+    def _resample_cached(self, audio: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
+        """Resample using a cached torchaudio resampler (fast path) with scipy/numpy fallbacks."""
+        resampler = self._get_or_create_resampler(orig_sr, target_sr)
+        if resampler is not None:
+            try:
+                import torch
+                waveform = torch.from_numpy(audio).unsqueeze(0)   # (1, T)
+                resampled = resampler(waveform).squeeze(0).numpy()
+                return resampled.astype(np.float32)
+            except Exception:
+                pass  # fall through to legacy path
+        return self._resample(audio, orig_sr, target_sr)
 
     @staticmethod
     def _resample(audio: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
+        """Legacy resampler (librosa / scipy / linear interp fallback)."""
         try:
             import librosa
             return librosa.resample(audio, orig_sr=orig_sr, target_sr=target_sr)

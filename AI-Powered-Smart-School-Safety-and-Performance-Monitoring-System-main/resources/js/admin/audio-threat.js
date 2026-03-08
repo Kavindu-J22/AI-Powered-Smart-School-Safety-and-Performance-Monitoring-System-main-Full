@@ -98,12 +98,12 @@ class AudioThreatDetector {
                 this.audioBuffer.push(new Float32Array(inputData));
             };
 
-            // Send audio every 4 seconds
+            // Send audio every 2 seconds (reduced from 4s for faster detection)
             this.audioInterval = setInterval(() => {
                 if (this.audioBuffer.length > 0) {
                     this.processAudioBuffer();
                 }
-            }, 4000);
+            }, 2000);
             this.isRecording = true;
             this.stats.startTime = Date.now();
             this.sessionId = `session_${Date.now()}`;

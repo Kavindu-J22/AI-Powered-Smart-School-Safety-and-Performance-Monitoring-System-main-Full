@@ -7,6 +7,7 @@ import os
 import sys
 import re
 from typing import Dict, List, Tuple, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import ThreatKeywords, ModelConfig
@@ -82,62 +83,71 @@ class SpeechThreatDetector:
                 audio_bytes = audio_int16.tobytes()
                 audio = sr.AudioData(audio_bytes, sample_rate, 2)  # 2 bytes per sample
 
-                # Try BOTH English and Sinhala in parallel for better detection
+                # Run English and Sinhala STT concurrently to halve network wait time
                 english_text = None
                 sinhala_text = None
+                english_error = None
+                sinhala_error = None
 
-                # Try English first
-                try:
-                    english_text = self.recognizer.recognize_google(audio, language='en-US', show_all=False)
-                    if english_text:
-                        results = {
-                            'text': english_text,
-                            'language': 'english',
-                            'confidence': 0.85,
-                            'engine': 'google',
-                            'error': None
-                        }
-                        print(f"[Speech] Transcribed (English): '{english_text}'")
-                except sr.UnknownValueError:
-                    pass  # Try Sinhala
-                except sr.RequestError as e:
-                    results['error'] = f'Google API error: {str(e)}'
-                except Exception as e:
-                    results['error'] = f'English transcription failed: {str(e)}'
+                def _recognize_english():
+                    try:
+                        return self.recognizer.recognize_google(audio, language='en-US', show_all=False), None
+                    except sr.UnknownValueError:
+                        return None, None
+                    except sr.RequestError as e:
+                        return None, f'Google API error: {str(e)}'
+                    except Exception as e:
+                        return None, f'English transcription failed: {str(e)}'
 
-                # Try Sinhala (always try, even if English succeeded, to catch mixed language)
-                try:
-                    sinhala_text = self.recognizer.recognize_google(audio, language='si-LK', show_all=False)
-                    if sinhala_text:
-                        # If we got both, combine them
-                        if english_text:
-                            combined_text = f"{english_text} {sinhala_text}"
-                            results = {
-                                'text': combined_text,
-                                'language': 'mixed',
-                                'confidence': 0.8,
-                                'engine': 'google',
-                                'error': None
-                            }
-                            print(f"[Speech] Transcribed (Mixed): '{combined_text}'")
-                        else:
-                            results = {
-                                'text': sinhala_text,
-                                'language': 'sinhala',
-                                'confidence': 0.82,  # Slightly higher confidence for Sinhala
-                                'engine': 'google',
-                                'error': None
-                            }
-                            print(f"[Speech] Transcribed (Sinhala): '{sinhala_text}'")
-                except sr.UnknownValueError:
-                    if not english_text:
-                        results['error'] = 'Could not understand audio in English or Sinhala'
-                except sr.RequestError as e:
-                    if not english_text:
-                        results['error'] = f'Google API error: {str(e)}'
-                except Exception as e:
-                    if not english_text:
-                        results['error'] = f'Sinhala transcription failed: {str(e)}'
+                def _recognize_sinhala():
+                    try:
+                        return self.recognizer.recognize_google(audio, language='si-LK', show_all=False), None
+                    except sr.UnknownValueError:
+                        return None, None
+                    except sr.RequestError as e:
+                        return None, f'Google API error: {str(e)}'
+                    except Exception as e:
+                        return None, f'Sinhala transcription failed: {str(e)}'
+
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    fut_en = executor.submit(_recognize_english)
+                    fut_si = executor.submit(_recognize_sinhala)
+                    english_text, english_error = fut_en.result()
+                    sinhala_text, sinhala_error = fut_si.result()
+
+                if english_text:
+                    print(f"[Speech] Transcribed (English): '{english_text}'")
+                if sinhala_text:
+                    print(f"[Speech] Transcribed (Sinhala): '{sinhala_text}'")
+
+                if english_text and sinhala_text:
+                    combined_text = f"{english_text} {sinhala_text}"
+                    results = {
+                        'text': combined_text,
+                        'language': 'mixed',
+                        'confidence': 0.8,
+                        'engine': 'google',
+                        'error': None
+                    }
+                    print(f"[Speech] Transcribed (Mixed): '{combined_text}'")
+                elif english_text:
+                    results = {
+                        'text': english_text,
+                        'language': 'english',
+                        'confidence': 0.85,
+                        'engine': 'google',
+                        'error': None
+                    }
+                elif sinhala_text:
+                    results = {
+                        'text': sinhala_text,
+                        'language': 'sinhala',
+                        'confidence': 0.82,
+                        'engine': 'google',
+                        'error': None
+                    }
+                else:
+                    results['error'] = english_error or sinhala_error or 'Could not understand audio in English or Sinhala'
             except Exception as e:
                 results['error'] = f'Speech recognition error: {str(e)}'
         else:

@@ -234,12 +234,12 @@ class AudioVideoThreatDetector {
                 this.audioBuffer.push(new Float32Array(e.inputBuffer.getChannelData(0)));
             };
 
-            // Process audio every 4 seconds
+            // Process audio every 2 seconds (reduced from 4s for faster detection)
             this.audioInterval = setInterval(() => {
                 if (this.audioBuffer.length > 0 && this.isRunning) {
                     this._processAudioBuffer();
                 }
-            }, 4000);
+            }, 2000);
 
             this._setStatus(this.audioStatusEl, 'Active', 'text-success');
             this.micStatusEl && (this.micStatusEl.innerHTML = '<span class="text-success text-sm">🎙 Microphone active</span>');

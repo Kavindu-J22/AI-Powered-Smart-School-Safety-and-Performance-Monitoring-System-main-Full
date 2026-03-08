@@ -17,17 +17,27 @@
 
 // ==================== CONFIGURATION ====================
 
-// WiFi Credentials
-const char *ssid = "Dialog_4G_739";
-const char *password = "18dDFFFF";
+// ── WiFi Credentials ── UPDATE THESE to your school network ──────────────────
+const char *ssid = "SHASHI-And-KAVI_4G";         // e.g. "SchoolWiFi_2.4G"
+const char *password = "ShashI@2203#0103"; // must be 2.4 GHz (not 5 GHz)
 
-// Camera Configuration
-const char *camera_id = "CAM_001";
-const char *camera_location = "Classroom 1A";
+// ── Camera Identity ── change per device ──────────────────────────────────────
+const char *camera_id = "CAM_001";            // unique per camera (CAM_001, CAM_002…)
+const char *camera_location = "Classroom 1A"; // human-readable label
 
-// Server Configuration
-const char *mqtt_server = "192.168.1.100";
+// ── MQTT Broker ── set to your MQTT server IP, or leave as-is if no MQTT ─────
+// MQTT is optional – the stream still works without a broker.
+const char *mqtt_server = "192.168.1.100"; // IP of your MQTT broker (e.g. Mosquitto)
 const int mqtt_port = 1883;
+
+// ── Static IP (recommended so the IP never changes) ───────────────────────────
+// Set USE_STATIC_IP to true and fill in values matching your router's subnet.
+// When false, the router assigns an IP via DHCP (check Serial Monitor for the IP).
+#define USE_STATIC_IP false
+IPAddress static_IP(192, 168, 1, 101); // change last number per camera (101, 102…)
+IPAddress gateway(192, 168, 1, 1);     // usually your router's IP
+IPAddress subnet(255, 255, 255, 0);
+IPAddress dns(8, 8, 8, 8);
 
 // Camera Settings
 #define CAMERA_MODEL_AI_THINKER
@@ -69,6 +79,11 @@ PubSubClient mqtt(espClient);
 unsigned long lastFrameTime = 0;
 unsigned long frameInterval = 1000 / FRAME_RATE;
 bool streamActive = false;
+
+// FIX: MQTT reconnect timer — only attempt reconnect every 5 seconds,
+// not on every loop iteration (which caused CPU spin when broker is offline).
+unsigned long lastMqttAttempt = 0;
+const unsigned long MQTT_RECONNECT_INTERVAL = 5000; // ms
 
 // ==================== CAMERA INITIALIZATION ====================
 
@@ -159,6 +174,21 @@ void connectWiFi()
   Serial.println(ssid);
 
   WiFi.mode(WIFI_STA);
+
+  // Apply static IP if enabled
+  if (USE_STATIC_IP)
+  {
+    if (!WiFi.config(static_IP, gateway, subnet, dns))
+    {
+      Serial.println("Static IP configuration failed – falling back to DHCP");
+    }
+    else
+    {
+      Serial.print("Static IP configured: ");
+      Serial.println(static_IP);
+    }
+  }
+
   WiFi.begin(ssid, password);
 
   int attempts = 0;
@@ -240,11 +270,19 @@ void handleRoot()
 
 void handleStream()
 {
+  // FIX: Write ALL data directly to the WiFiClient instead of mixing
+  // server.sendContent() with client.write(). Mixing the two approaches
+  // can corrupt the MJPEG boundary or stall the connection on some ESP32
+  // WebServer versions.
   WiFiClient client = server.client();
 
-  String response = "HTTP/1.1 200 OK\r\n";
-  response += "Content-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n";
-  server.sendContent(response);
+  // Send HTTP response headers directly to the TCP client
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: multipart/x-mixed-replace; boundary=frame");
+  client.println("Access-Control-Allow-Origin: *"); // FIX: CORS header so browser canvas can read frames
+  client.println("Cache-Control: no-cache, no-store, must-revalidate");
+  client.println("Connection: keep-alive");
+  client.println(); // blank line = end of headers
 
   streamActive = true;
 
@@ -262,13 +300,14 @@ void handleStream()
         break;
       }
 
-      String header = "--frame\r\n";
-      header += "Content-Type: image/jpeg\r\n";
-      header += "Content-Length: " + String(fb->len) + "\r\n\r\n";
+      // Write MJPEG frame boundary and headers directly to the client
+      client.printf("--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n", fb->len);
 
-      server.sendContent(header);
+      // Write the raw JPEG bytes
       client.write(fb->buf, fb->len);
-      server.sendContent("\r\n");
+
+      // End of frame
+      client.print("\r\n");
 
       esp_camera_fb_return(fb);
 
@@ -362,12 +401,20 @@ void loop()
   // Handle HTTP requests
   server.handleClient();
 
-  // Maintain MQTT connection
+  // Maintain MQTT connection (FIX: throttled to once per 5 s to avoid CPU spin)
   if (!mqtt.connected())
   {
-    connectMQTT();
+    unsigned long now = millis();
+    if (now - lastMqttAttempt >= MQTT_RECONNECT_INTERVAL)
+    {
+      lastMqttAttempt = now;
+      connectMQTT();
+    }
   }
-  mqtt.loop();
+  else
+  {
+    mqtt.loop();
+  }
 
   // Reconnect WiFi if disconnected
   if (WiFi.status() != WL_CONNECTED)
