@@ -76,17 +76,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Twilio SMS Configuration
+    | Telegram Bot Configuration
     |--------------------------------------------------------------------------
     |
-    | Credentials for sending critical threat SMS alerts via Twilio.
+    | Credentials for sending critical threat alerts via Telegram Bot API.
+    | Completely free, no rate limits for alert messages.
     |
     */
-    'twilio' => [
-        'sid'          => env('TWILIO_SID'),
-        'auth_token'   => env('TWILIO_AUTH_TOKEN'),
-        'from'         => env('TWILIO_FROM', '+19122148002'),
-        'alert_number' => env('TWILIO_ALERT_NUMBER', '+9470032488'),
+    'telegram' => [
+        'bot_token'     => env('TELEGRAM_BOT_TOKEN'),
+        'alert_chat_id' => env('TELEGRAM_ALERT_CHAT_ID'),
     ],
 
 ];

@@ -9,7 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
-use Twilio\Rest\Client as TwilioClient;
+
 
 class AudioVideoThreatController extends Controller
 {
@@ -18,14 +18,10 @@ class AudioVideoThreatController extends Controller
     protected string $videoApiUrl;
     protected int $timeout = 30;
 
-    // Default SMS recipient (admin can override via the UI)
-    protected string $defaultAlertNumber;
-
     public function __construct()
     {
-        $this->audioApiUrl       = config('services.audio_threat.url', 'http://127.0.0.1:5002');
-        $this->videoApiUrl       = config('services.video_threat.url', 'http://127.0.0.1:5003');
-        $this->defaultAlertNumber = config('services.twilio.alert_number', '+9470032488');
+        $this->audioApiUrl = config('services.audio_threat.url', 'http://127.0.0.1:5002');
+        $this->videoApiUrl = config('services.video_threat.url', 'http://127.0.0.1:5003');
     }
 
     /**
@@ -266,8 +262,7 @@ class AudioVideoThreatController extends Controller
             $timestamp     = now()->format('Y-m-d H:i:s');
             $classroomName = $request->input('classroom_name', '');
             $gradeLevel    = $request->input('grade_level', '');
-            // Use admin-supplied number from the UI; fall back to the default from config
-            $alertNumber   = trim($request->input('alert_number', $this->defaultAlertNumber)) ?: $this->defaultAlertNumber;
+            $chatId = config('services.telegram.alert_chat_id');
 
             // Resolve human-readable audio type:
             // For non_speech threats the actual class is nested inside non_speech_result.detected_class
@@ -296,7 +291,7 @@ class AudioVideoThreatController extends Controller
             // Speech transcript (if available)
             $speechText = $audioThreat['speech_result']['text'] ?? null;
 
-            // Build a concise SMS body (Twilio standard SMS max 1600 chars)
+            // Build the alert message body
             $smsBody  = "⚠ CRITICAL SCHOOL THREAT ALERT ⚠\n";
             $smsBody .= "Time: {$timestamp}\n";
             if ($classroomName) {
@@ -315,29 +310,26 @@ class AudioVideoThreatController extends Controller
             $smsBody .= "ACTION: Dispatch security immediately and review live footage.\n";
             $smsBody .= "— School Safety Monitoring System";
 
-            // Send SMS via Twilio
-            $twilio = new TwilioClient(
-                config('services.twilio.sid'),
-                config('services.twilio.auth_token')
-            );
-
-            $twilio->messages->create($alertNumber, [
-                'from' => config('services.twilio.from'),
-                'body' => $smsBody,
+            // Send alert via Telegram Bot API (free, no rate limits)
+            $botToken = config('services.telegram.bot_token');
+            Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                'chat_id'    => $chatId,
+                'text'       => $smsBody,
+                'parse_mode' => 'HTML',
             ]);
 
-            Log::critical('AudioVideo: COMBINED CRITICAL SMS ALERT sent', [
-                'audio_threat'  => $audioType,
-                'video_threat'  => $videoType,
-                'classroom'     => $classroomName ?: 'N/A',
-                'grade'         => $gradeLevel ?: 'N/A',
-                'sms_to'        => $alertNumber,
-                'timestamp'     => $timestamp,
+            Log::critical('AudioVideo: COMBINED CRITICAL TELEGRAM ALERT sent', [
+                'audio_threat' => $audioType,
+                'video_threat' => $videoType,
+                'classroom'    => $classroomName ?: 'N/A',
+                'grade'        => $gradeLevel ?: 'N/A',
+                'telegram_to'  => $chatId,
+                'timestamp'    => $timestamp,
             ]);
 
-            return response()->json(['success' => true, 'message' => 'Critical SMS alert sent to ' . $alertNumber]);
+            return response()->json(['success' => true, 'message' => 'Critical Telegram alert sent successfully.']);
         } catch (\Exception $e) {
-            Log::error('AudioVideo: Failed to send combined SMS alert: ' . $e->getMessage());
+            Log::error('AudioVideo: Failed to send combined Telegram alert: ' . $e->getMessage());
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
