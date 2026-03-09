@@ -311,12 +311,22 @@ class AudioVideoThreatController extends Controller
             $smsBody .= "— School Safety Monitoring System";
 
             // Send alert via Telegram Bot API (free, no rate limits)
+            // withoutVerifying() is required on Windows dev environments (cURL SSL cert issue)
             $botToken = config('services.telegram.bot_token');
-            Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
-                'chat_id'    => $chatId,
-                'text'       => $smsBody,
-                'parse_mode' => 'HTML',
-            ]);
+            $tgResponse = Http::withoutVerifying()
+                ->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                    'chat_id' => $chatId,
+                    'text'    => $smsBody,
+                ]);
+
+            if (!$tgResponse->successful() || !($tgResponse->json('ok'))) {
+                $errDesc = $tgResponse->json('description') ?? $tgResponse->body();
+                Log::error('AudioVideo: Telegram API rejected combined alert', [
+                    'status'      => $tgResponse->status(),
+                    'description' => $errDesc,
+                ]);
+                return response()->json(['success' => false, 'error' => 'Telegram API error: ' . $errDesc], 500);
+            }
 
             Log::critical('AudioVideo: COMBINED CRITICAL TELEGRAM ALERT sent', [
                 'audio_threat' => $audioType,
@@ -330,6 +340,73 @@ class AudioVideoThreatController extends Controller
             return response()->json(['success' => true, 'message' => 'Critical Telegram alert sent successfully.']);
         } catch (\Exception $e) {
             Log::error('AudioVideo: Failed to send combined Telegram alert: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Send a Telegram alert for a single object/threat that was detected
+     * continuously for 10+ seconds on the frontend.
+     * Each unique object key triggers exactly one message per session (enforced on frontend).
+     */
+    public function sendObjectAlert(Request $request): JsonResponse
+    {
+        try {
+            $objectKey    = $request->input('object_key', 'unknown');
+            $objectLabel  = $request->input('object_label', 'Unknown Object');
+            $confidence   = $request->input('confidence');
+            $classroomName = $request->input('classroom_name', '');
+            $gradeLevel   = $request->input('grade_level', '');
+            $timestamp    = now()->format('Y-m-d H:i:s');
+
+            // Build the Telegram message
+            $msg  = "⚠ PERSISTENT OBJECT ALERT ⚠\n";
+            $msg .= "Time: {$timestamp}\n";
+            if ($classroomName) {
+                $locationLine = "Classroom: {$classroomName}";
+                if ($gradeLevel) $locationLine .= " (Grade {$gradeLevel})";
+                $msg .= "{$locationLine}\n";
+            }
+            $msg .= "\n";
+            $msg .= "Object: {$objectLabel}\n";
+            if ($confidence !== null) {
+                $msg .= "Confidence: {$confidence}%\n";
+            }
+            $msg .= "Duration: Detected continuously for 10+ seconds\n\n";
+            $msg .= "ACTION: Investigate this object immediately.\n";
+            $msg .= "— School Safety Monitoring System";
+
+            $botToken = config('services.telegram.bot_token');
+            $chatId   = config('services.telegram.alert_chat_id');
+
+            // withoutVerifying() is required on Windows dev environments (cURL SSL cert issue)
+            $tgResponse = Http::withoutVerifying()
+                ->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                    'chat_id' => $chatId,
+                    'text'    => $msg,
+                ]);
+
+            if (!$tgResponse->successful() || !($tgResponse->json('ok'))) {
+                $errDesc = $tgResponse->json('description') ?? $tgResponse->body();
+                Log::error('AudioVideo: Telegram API rejected object alert', [
+                    'status'      => $tgResponse->status(),
+                    'description' => $errDesc,
+                    'object'      => $objectLabel,
+                ]);
+                return response()->json(['success' => false, 'error' => 'Telegram API error: ' . $errDesc], 500);
+            }
+
+            Log::warning('AudioVideo: Persistent object Telegram alert sent', [
+                'object_key'   => $objectKey,
+                'object_label' => $objectLabel,
+                'classroom'    => $classroomName ?: 'N/A',
+                'grade'        => $gradeLevel ?: 'N/A',
+                'timestamp'    => $timestamp,
+            ]);
+
+            return response()->json(['success' => true, 'message' => "Persistent object alert sent for: {$objectLabel}"]);
+        } catch (\Exception $e) {
+            Log::error('AudioVideo: Failed to send persistent object alert: ' . $e->getMessage());
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }

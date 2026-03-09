@@ -136,6 +136,7 @@ Route::middleware(['auth'])->group(function () {
                 Route::post('/stop-audio-session', 'stopAudioSession')->name('stop-audio-session');
                 Route::post('/process-frame', 'processFrame')->name('process-frame');
                 Route::post('/send-combined-alert', 'sendCombinedAlert')->name('send-combined-alert');
+                Route::post('/send-object-alert', 'sendObjectAlert')->name('send-object-alert');
                 // Classroom IoT device management
                 Route::get('/classrooms', 'classrooms')->name('classrooms');
                 Route::post('/classrooms/update-devices', 'updateClassroomDevices')->name('classrooms.update-devices');

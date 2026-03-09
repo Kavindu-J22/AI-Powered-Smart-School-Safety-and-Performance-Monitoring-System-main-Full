@@ -426,6 +426,7 @@
             stopAudioSession: '{{ route("admin.management.audio-video-threat.stop-audio-session") }}',
             processFrame: '{{ route("admin.management.audio-video-threat.process-frame") }}',
             sendCombinedAlert: '{{ route("admin.management.audio-video-threat.send-combined-alert") }}',
+            sendObjectAlert: '{{ route("admin.management.audio-video-threat.send-object-alert") }}',
             classrooms: '{{ route("admin.management.audio-video-threat.classrooms") }}',
             updateClassroomDevices: '{{ route("admin.management.audio-video-threat.classrooms.update-devices") }}',
         }
