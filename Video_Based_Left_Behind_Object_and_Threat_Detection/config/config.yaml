@@ -135,7 +135,7 @@ threat_detection:
     weights: null                   # no custom weights needed — uses yolov8n-pose.pt
     input_size: [640, 640]
     clip_length: 8                  # smoothing history window (frames) — shorter = faster response
-    confidence_threshold: 0.40     # blended heuristic score threshold — lower = more sensitive
+    confidence_threshold: 0.55     # raised from 0.40 to reduce false positives on normal movement
 
   # Threat categories detected by the pose-based system
   threat_classes:

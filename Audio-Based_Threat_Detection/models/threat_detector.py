@@ -49,10 +49,11 @@ class ThreatDetector:
         self.max_latency = ModelConfig.MAX_LATENCY
 
         # Consecutive detection tracking (reduces false positives)
-        # Set to 1 so that a single confident detection is reported immediately.
-        # Users can increase via set_sensitivity('low') if false-positives are a problem.
+        # Require 2 consecutive detections (~2-4 seconds of audio) before firing.
+        # This eliminates transient false positives from normal speech that briefly
+        # scores above the threshold in a single analysis window.
         self.detection_history: deque = deque(maxlen=5)
-        self.consecutive_required = 1  # 1 = report on first detection (most responsive)
+        self.consecutive_required = 2  # 2 = requires two back-to-back detections
 
         # Energy-based filtering
         self.min_energy_threshold = 0.010  # Low enough to catch crying/glass_breaking
@@ -73,20 +74,24 @@ class ThreatDetector:
         # New thresholds use more conservative (lower) values for the previously
         # under-detected classes so that genuine threat events at PANNS score ~0.05
         # are reliably reported.
+        # PANNS CNN14 thresholds — raised from 0.05 to eliminate false positives
+        # caused by normal speech briefly scoring above the old 0.05 bar.
+        # Genuine crying/screaming in a classroom typically scores 0.15–0.45 on PANNS;
+        # normal conversation rarely exceeds 0.10 for these classes.
         self.class_thresholds = {
-            'crying':         0.05,   # Soft sounds — very sensitive threshold
-            'screaming':      0.05,   # Increased recall; adaptive threshold guards FP
-            'shouting':       0.06,   # Slightly higher — shouts are louder/more common
-            'glass_breaking': 0.05,   # Sharp transient — needs low base threshold
+            'crying':         0.15,   # Raised from 0.05 — filters normal speech FPs
+            'screaming':      0.12,   # Raised from 0.05 — genuine screams score 0.20+
+            'shouting':       0.14,   # Raised from 0.06 — loud conversation excluded
+            'glass_breaking': 0.10,   # Raised from 0.05 — kept lower (sharp transient)
             'normal':         0.0     # Always allow normal (no threshold)
         }
 
         # Custom-model thresholds (used when PANNS is unavailable)
         self.custom_class_thresholds = {
-            'crying':         0.50,
-            'screaming':      0.60,
-            'shouting':       0.60,
-            'glass_breaking': 0.50,
+            'crying':         0.65,   # Raised from 0.50 — reduces speech misclassification
+            'screaming':      0.68,   # Raised from 0.60
+            'shouting':       0.68,   # Raised from 0.60
+            'glass_breaking': 0.55,   # Raised from 0.50
             'normal':         0.0
         }
 
@@ -423,19 +428,19 @@ class ThreatDetector:
             self.min_energy_threshold = 0.008
             self.high_energy_threshold = 0.12
         else:  # normal — balanced (default)
-            self.consecutive_required = 1
+            self.consecutive_required = 2
             self.class_thresholds = {            # PANNS scale
-                'crying':         0.05,
-                'screaming':      0.05,
-                'shouting':       0.06,
-                'glass_breaking': 0.05,
+                'crying':         0.15,
+                'screaming':      0.12,
+                'shouting':       0.14,
+                'glass_breaking': 0.10,
                 'normal':         0.0
             }
             self.custom_class_thresholds = {     # custom model scale
-                'crying':         0.50,
-                'screaming':      0.60,
-                'shouting':       0.60,
-                'glass_breaking': 0.50,
+                'crying':         0.65,
+                'screaming':      0.68,
+                'shouting':       0.68,
+                'glass_breaking': 0.55,
                 'normal':         0.0
             }
             self.min_energy_threshold = 0.010

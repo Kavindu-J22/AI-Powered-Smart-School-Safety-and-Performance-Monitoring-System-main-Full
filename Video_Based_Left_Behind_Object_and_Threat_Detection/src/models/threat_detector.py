@@ -110,18 +110,18 @@ class ThreatDetector:
 
     def _score_proximity(self, persons: List[Dict]) -> float:
         """
-        High score when two or more people are physically close to each other.
+        High score only when people are physically very close (touching / overlapping).
 
-        Uses center-to-center distance normalised by the average person width
-        so the score is scale-invariant.  This fires even when bounding boxes
-        do NOT overlap (e.g. two people standing side-by-side fighting), which
-        the old IoU-only approach completely missed.
+        Uses center-to-center distance normalised by the average person width.
+        The denominator was reduced from 3.0 to 1.5 so that normal classroom
+        standing distance (1.5+ person-widths apart) produces a score of 0.0.
+        Only people who are within arm's reach score meaningfully.
 
         Score mapping (D = distance / avg_width):
-          D <= 0.5  → 1.0  (touching / overlapping)
-          D  = 1.0  → 0.75 (very close — arms' reach)
-          D  = 2.0  → 0.25 (close but not in contact)
-          D >= 3.0  → 0.0  (far apart)
+          D <= 0.0  → 1.0  (overlapping bboxes — physical contact)
+          D  = 0.5  → 0.67 (very close — arm's reach, likely contact)
+          D  = 1.0  → 0.33 (close — suspicious proximity)
+          D >= 1.5  → 0.0  (normal classroom/conversation distance — no score)
         """
         if len(persons) < 2:
             return 0.0
@@ -139,8 +139,10 @@ class ThreatDetector:
                 # Euclidean distance in "person-widths"
                 dist = ((cx2 - cx1) ** 2 + (cy2 - cy1) ** 2) ** 0.5
                 norm_dist = dist / avg_w
-                # Convert to [0,1] score: 0 distance → 1.0, ≥3 widths → 0.0
-                score = max(0.0, 1.0 - norm_dist / 3.0)
+                # Raised denominator from 3.0 → 1.5: normal conversation distance (1.5 widths)
+                # now scores 0.0 instead of 0.5, eliminating false positives from
+                # students/teacher standing near each other in normal classroom settings.
+                score = max(0.0, 1.0 - norm_dist / 1.5)
                 max_score = max(max_score, score)
         return max_score
 
@@ -223,7 +225,10 @@ class ThreatDetector:
             person_mag = mag[mask == 1]
             if person_mag.size == 0:
                 return 0.0
-            return min(float(np.mean(person_mag)) / 8.0, 1.0)
+            # Raised denominator from 8.0 → 12.0 so that normal walking/fidgeting
+            # (low optical-flow magnitude) doesn't produce a dangerously high score.
+            # Only rapid, violent movement now reaches 0.5+.
+            return min(float(np.mean(person_mag)) / 12.0, 1.0)
         except Exception:
             return 0.0
 
@@ -294,8 +299,11 @@ class ThreatDetector:
                 # Weighted blend for interaction threats
                 blended = (0.40 * s_prox + 0.25 * s_motion + 0.15 * s_arm + 0.20 * s_fall)
 
-                # Boost when proximity + motion both fire (most likely a fight)
-                if s_prox > 0.2 and s_motion > 0.2:
+                # Boost only when BOTH signals are strongly elevated — i.e. people
+                # are genuinely touching AND moving fast.  Raised from 0.2/0.2 to
+                # 0.45/0.40 so two students standing/walking near each other never
+                # trigger the multiplier and produce false "fighting" alerts.
+                if s_prox > 0.45 and s_motion > 0.40:
                     blended = min(blended * 1.6, 1.0)
             else:
                 # Single person (or no persons): only fall detection
@@ -320,14 +328,20 @@ class ThreatDetector:
             if smoothed >= self.confidence_threshold:
                 if s_fall > 0.5:
                     threat_type = "fall_detected"
-                elif n_persons >= 2 and s_prox > 0.2 and s_motion > 0.2:
+                elif n_persons >= 2 and s_prox > 0.45 and s_motion > 0.35:
+                    # Both proximity AND motion strongly elevated → fighting
                     threat_type = "fighting"
-                elif n_persons >= 2 and s_arm > 0.3:
+                elif n_persons >= 2 and s_arm > 0.40:
+                    # Significant arm extension/raise with multiple people → aggression
                     threat_type = "aggressive_behavior"
-                elif n_persons >= 2:
+                elif n_persons >= 2 and s_prox > 0.35 and s_motion > 0.25:
+                    # Moderate proximity + motion — pushing/shoving but not full fight
+                    # Requires BOTH signals to avoid firing on plain co-presence.
                     threat_type = "pushing"
+                # If none of the above conditions are met (e.g. two people simply
+                # standing in frame with low proximity/motion), no threat is declared
+                # even if the smoothed score exceeds the threshold due to stale history.
                 # If n_persons < 2 and score is high but no fall → do NOT alert
-                # (stale history artefact — let it decay naturally)
 
             all_scores = {
                 "proximity":    round(s_prox, 3),

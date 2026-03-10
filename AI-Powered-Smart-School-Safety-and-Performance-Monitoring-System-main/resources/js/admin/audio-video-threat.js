@@ -610,19 +610,23 @@ class AudioVideoThreatDetector {
         }
 
         // --- 10-second persistence tracking ---
-        // Collect all currently detected object keys in this frame
+        // Only track ACTUAL THREATS and LEFT-BEHIND objects.
+        // Do NOT track every detected object (person, backpack, bottle, etc.) —
+        // that caused normal classroom objects to fire false-positive alerts.
         const now = Date.now();
         const currentKeys = new Set();
 
-        // Track threat detections
+        // Track confirmed threat detections (fighting, pushing, aggressive_behavior, fall)
         if (threats?.is_threat && threats.threat_type) {
             currentKeys.add('threat:' + threats.threat_type);
         }
 
-        // Track regular detected objects (e.g. weapons, left-behind items)
+        // Track only objects explicitly flagged as left-behind by the Python tracker
         if (objects?.detections?.length > 0) {
             objects.detections.forEach(det => {
-                if (det.class_name) currentKeys.add('object:' + det.class_name);
+                if (det.is_left_behind && det.class_name) {
+                    currentKeys.add('leftbehind:' + det.class_name);
+                }
             });
         }
 
