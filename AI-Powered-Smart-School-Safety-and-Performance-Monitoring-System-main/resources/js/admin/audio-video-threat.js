@@ -578,60 +578,73 @@ class AudioVideoThreatDetector {
             this._addHistory('Video', 'Left-Behind Object', 'Medium');
         }
 
-        // --- 10-second persistence tracking ---
-        // Only track ACTUAL THREATS and LEFT-BEHIND objects.
-        // Do NOT track every detected object (person, backpack, bottle, etc.) —
-        // that caused normal classroom objects to fire false-positive alerts.
+        // --- 10-second persistence tracking (with 2-second gap tolerance) ---
+        // Tracks ALL detected objects (any bounding box) plus confirmed threats.
+        // Fires a Telegram alert once per object type after 10 continuous seconds.
+        // Gap tolerance: up to 2 s of model-flicker does NOT reset the timer.
         const now = Date.now();
+        const GAP_TOLERANCE_MS = 2000;
         const currentKeys = new Set();
 
-        // Track confirmed threat detections (fighting, pushing, aggressive_behavior, fall)
+        // Track ALL detected objects (every bounding box the model returns)
+        // 'person' detections are intentionally excluded — no alert needed for people.
+        if (objects?.detections?.length > 0) {
+            objects.detections.forEach(det => {
+                if (!det.class_name) return;
+                if (det.class_name.toLowerCase() === 'person') return; // skip person
+                const prefix = det.is_left_behind ? 'leftbehind'
+                             : det.is_unknown     ? 'unknown'
+                             : 'object';
+                currentKeys.add(prefix + ':' + (det.original_class_name || det.class_name));
+            });
+        }
+
+        // Also track confirmed pose/behaviour threats
         if (threats?.is_threat && threats.threat_type) {
             currentKeys.add('threat:' + threats.threat_type);
         }
 
-        // Track only objects explicitly flagged as left-behind by the Python tracker
-        if (objects?.detections?.length > 0) {
-            objects.detections.forEach(det => {
-                if (det.is_left_behind && det.class_name) {
-                    currentKeys.add('leftbehind:' + det.class_name);
-                }
-            });
-        }
+        console.log('[PersistTrack] frame keys:', [...currentKeys]);
 
-        // Update trackedObjects: start timer for new detections, clear for absent ones
-        // First, reset firstSeen for any object no longer detected this frame
+        // Step 1: objects absent this frame — reset streak only after gap exceeds tolerance
         for (const key of Object.keys(this.trackedObjects)) {
             if (!currentKeys.has(key)) {
-                // Object has disappeared — break the continuous streak
-                this.trackedObjects[key].firstSeen = null;
+                const lastSeen = this.trackedObjects[key].lastSeen || 0;
+                if ((now - lastSeen) > GAP_TOLERANCE_MS) {
+                    this.trackedObjects[key].firstSeen = null; // streak broken
+                }
+                // within tolerance → flicker gap, keep streak alive
             }
         }
 
-        // Now process currently detected objects
+        // Step 2: objects visible this frame — accumulate time, fire alert at 10 s
         for (const key of currentKeys) {
             if (!this.trackedObjects[key]) {
-                // First time seeing this object — initialise tracking
-                this.trackedObjects[key] = { firstSeen: now, alertSent: false };
-            } else if (this.trackedObjects[key].firstSeen === null) {
-                // Object reappeared after a gap — restart its timer
-                this.trackedObjects[key].firstSeen = now;
+                this.trackedObjects[key] = { firstSeen: now, lastSeen: now, alertSent: false };
+                console.log(`[PersistTrack] NEW: ${key}`);
             } else {
-                // Object is continuously visible — check elapsed time
-                const elapsed = now - this.trackedObjects[key].firstSeen;
-                if (elapsed >= this.OBJECT_PERSIST_MS && !this.trackedObjects[key].alertSent) {
-                    // Mark as sent IMMEDIATELY to prevent duplicate calls
-                    this.trackedObjects[key].alertSent = true;
+                this.trackedObjects[key].lastSeen = now;
 
-                    // Build human-readable label
-                    const parts = key.split(':');
-                    const label = (parts[1] || key).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                    const confidence = threats?.is_threat && 'threat:' + threats.threat_type === key
-                        ? Math.round((threats.confidence || 0) * 100)
-                        : null;
+                if (this.trackedObjects[key].firstSeen === null) {
+                    // Reappeared after a long gap — restart timer
+                    this.trackedObjects[key].firstSeen = now;
+                    console.log(`[PersistTrack] RESTART: ${key}`);
+                } else {
+                    const elapsed = now - this.trackedObjects[key].firstSeen;
+                    console.log(`[PersistTrack] ${key} → ${(elapsed / 1000).toFixed(1)}s / 10s`);
 
-                    // Send Telegram alert for this persistent object
-                    this._sendObjectAlert(key, label, confidence);
+                    if (elapsed >= this.OBJECT_PERSIST_MS && !this.trackedObjects[key].alertSent) {
+                        this.trackedObjects[key].alertSent = true;
+
+                        const parts = key.split(':');
+                        const label = (parts[1] || key).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        const confidence = (threats?.is_threat && ('threat:' + threats.threat_type) === key)
+                            ? Math.round((threats.confidence || 0) * 100)
+                            : null;
+
+                        console.log(`[PersistTrack] ✅ ALERT at 10s for: ${key}`);
+                        this._sendObjectAlert(key, label, confidence);
+                    }
                 }
             }
         }
@@ -642,22 +655,28 @@ class AudioVideoThreatDetector {
      * continuously detected for 10+ seconds. Fires only ONCE per object key.
      */
     async _sendObjectAlert(key, label, confidencePct) {
+        console.log(`[ObjectAlert] Sending Telegram for: ${label} → ${this.routes.sendObjectAlert}`);
         try {
             const body = {
-                object_key:    key,
-                object_label:  label,
-                confidence:    confidencePct,
+                object_key:     key,
+                object_label:   label,
+                confidence:     confidencePct,
                 classroom_name: this.selectedClassroom?.name  || '',
                 grade_level:    this.selectedClassroom?.grade || '',
             };
-            await fetch(this.routes.sendObjectAlert, {
+            const resp = await fetch(this.routes.sendObjectAlert, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrf },
                 body: JSON.stringify(body),
             });
-            console.log(`[ObjectAlert] Telegram sent for: ${label}`);
+            const data = await resp.json();
+            if (data.success) {
+                console.log(`[ObjectAlert] ✅ Telegram delivered for: ${label}`);
+            } else {
+                console.error(`[ObjectAlert] ❌ Server error for ${label}:`, data.error);
+            }
         } catch (e) {
-            console.error('[ObjectAlert] Failed to send Telegram:', e);
+            console.error('[ObjectAlert] ❌ Fetch failed:', e);
         }
     }
 
@@ -1002,8 +1021,9 @@ class AudioVideoThreatDetector {
         this._addHistory('CRITICAL', `${audioLabel} + ${videoLabel}`, 'Critical');
 
         // Send Telegram alert via Laravel
+        console.log('[CriticalAlert] Sending combined Telegram alert →', this.routes.sendCombinedAlert);
         try {
-            await fetch(this.routes.sendCombinedAlert, {
+            const resp = await fetch(this.routes.sendCombinedAlert, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrf },
                 body: JSON.stringify({
@@ -1013,7 +1033,13 @@ class AudioVideoThreatDetector {
                     grade_level:    this.selectedClassroom?.grade || '',
                 })
             });
-        } catch (e) { console.error('Failed to send combined Telegram alert:', e); }
+            const data = await resp.json();
+            if (data.success) {
+                console.log('[CriticalAlert] ✅ Combined Telegram alert delivered.');
+            } else {
+                console.error('[CriticalAlert] ❌ Server error:', data.error);
+            }
+        } catch (e) { console.error('[CriticalAlert] ❌ Fetch failed:', e); }
     }
 
     /* ============================================================

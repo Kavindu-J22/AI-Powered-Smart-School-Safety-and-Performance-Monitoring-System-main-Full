@@ -383,22 +383,15 @@ class AudioVideoThreatController extends Controller
             $smsBody .= "ACTION: Dispatch security immediately and review live footage.\n";
             $smsBody .= "— School Safety Monitoring System";
 
-            // Send alert via Telegram Bot API (free, no rate limits)
-            // withoutVerifying() is required on Windows dev environments (cURL SSL cert issue)
+            // Send alert via Telegram Bot API using raw cURL (more reliable than Guzzle on Windows)
             $botToken = config('services.telegram.bot_token');
-            $tgResponse = Http::withoutVerifying()
-                ->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
-                    'chat_id' => $chatId,
-                    'text'    => $smsBody,
-                ]);
+            $tgResult = $this->sendViaTelegram($botToken, $chatId, $smsBody);
 
-            if (!$tgResponse->successful() || !($tgResponse->json('ok'))) {
-                $errDesc = $tgResponse->json('description') ?? $tgResponse->body();
+            if (!$tgResult['ok']) {
                 Log::error('AudioVideo: Telegram API rejected combined alert', [
-                    'status'      => $tgResponse->status(),
-                    'description' => $errDesc,
+                    'error' => $tgResult['error'],
                 ]);
-                return response()->json(['success' => false, 'error' => 'Telegram API error: ' . $errDesc], 500);
+                return response()->json(['success' => false, 'error' => 'Telegram error: ' . $tgResult['error']], 500);
             }
 
             Log::critical('AudioVideo: COMBINED CRITICAL TELEGRAM ALERT sent', [
@@ -452,21 +445,15 @@ class AudioVideoThreatController extends Controller
             $botToken = config('services.telegram.bot_token');
             $chatId   = config('services.telegram.alert_chat_id');
 
-            // withoutVerifying() is required on Windows dev environments (cURL SSL cert issue)
-            $tgResponse = Http::withoutVerifying()
-                ->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
-                    'chat_id' => $chatId,
-                    'text'    => $msg,
-                ]);
+            // Send via raw cURL (more reliable than Guzzle on Windows dev environments)
+            $tgResult = $this->sendViaTelegram($botToken, $chatId, $msg);
 
-            if (!$tgResponse->successful() || !($tgResponse->json('ok'))) {
-                $errDesc = $tgResponse->json('description') ?? $tgResponse->body();
+            if (!$tgResult['ok']) {
                 Log::error('AudioVideo: Telegram API rejected object alert', [
-                    'status'      => $tgResponse->status(),
-                    'description' => $errDesc,
-                    'object'      => $objectLabel,
+                    'error'  => $tgResult['error'],
+                    'object' => $objectLabel,
                 ]);
-                return response()->json(['success' => false, 'error' => 'Telegram API error: ' . $errDesc], 500);
+                return response()->json(['success' => false, 'error' => 'Telegram error: ' . $tgResult['error']], 500);
             }
 
             Log::warning('AudioVideo: Persistent object Telegram alert sent', [
@@ -514,5 +501,48 @@ class AudioVideoThreatController extends Controller
             Log::debug('AudioVideo: Could not fetch video status: ' . $e->getMessage());
         }
         return ['object_detector_loaded' => false, 'threat_detector_loaded' => false];
+    }
+
+    /**
+     * Send a Telegram message via raw cURL.
+     * Uses cURL directly instead of Guzzle/Http because cURL is more reliable
+     * on Windows dev environments (SSL verification disabled, explicit timeout).
+     *
+     * @return array{ok: bool, error: string}
+     */
+    private function sendViaTelegram(string $botToken, string $chatId, string $text): array
+    {
+        $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL            => $url,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => http_build_query(['chat_id' => $chatId, 'text' => $text]),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false,   // required on Windows dev (no system CA bundle)
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_CONNECTTIMEOUT => 10,
+        ]);
+
+        $response  = curl_exec($ch);
+        $curlError = curl_error($ch);
+        unset($ch);
+
+        if ($curlError) {
+            Log::error('AudioVideo: cURL Telegram send error', ['curl_error' => $curlError]);
+            return ['ok' => false, 'error' => "cURL error: {$curlError}"];
+        }
+
+        $result = json_decode($response, true);
+
+        if (empty($result['ok'])) {
+            $desc = $result['description'] ?? $response;
+            Log::error('AudioVideo: Telegram API error', ['response' => $result]);
+            return ['ok' => false, 'error' => $desc];
+        }
+
+        return ['ok' => true, 'error' => ''];
     }
 }
