@@ -46,13 +46,24 @@ class AnswerEvaluator:
         else:
             return {'error': f'Unknown question type: {question_type}'}
     
-    def _evaluate_mcq(self, question: Dict[str, Any], 
+    def _evaluate_mcq(self, question: Dict[str, Any],
                       student_answer: str) -> Dict[str, Any]:
-        """Evaluate MCQ answer - instant grading"""
+        """Evaluate MCQ answer - instant grading with format normalization."""
         correct_answer = question.get('correct_answer', '').upper().strip()
-        student_answer = student_answer.upper().strip()
-        
-        is_correct = student_answer == correct_answer
+
+        # Normalize student input so common real-world formats are accepted:
+        #   "option a"  →  "A"
+        #   "A)"        →  "A"
+        #   "A."        →  "A"
+        #   " a "       →  "A"
+        normalized = student_answer.upper().strip()
+        m = re.match(r'^OPTION\s+([A-D])', normalized)
+        if m:
+            normalized = m.group(1)
+        normalized = normalized.rstrip('.').rstrip(')').strip()
+
+        is_correct = normalized == correct_answer
+        student_answer = normalized   # use normalized form in response
         max_marks = question.get('marks', 1)
         
         return {
@@ -183,7 +194,8 @@ class AnswerEvaluator:
     def _check_length_adequacy(self, answer: str, question_type: str) -> float:
         """Check if answer length is appropriate"""
         word_count = len(answer.split())
-        min_words = {'SHORT_ANSWER': 20, 'DESCRIPTIVE': 100}
+        # Realistic minimums for school answers (not research papers)
+        min_words = {'SHORT_ANSWER': 8, 'DESCRIPTIVE': 40}
         max_words = {'SHORT_ANSWER': 100, 'DESCRIPTIVE': 500}
         
         min_w = min_words.get(question_type, 20)
