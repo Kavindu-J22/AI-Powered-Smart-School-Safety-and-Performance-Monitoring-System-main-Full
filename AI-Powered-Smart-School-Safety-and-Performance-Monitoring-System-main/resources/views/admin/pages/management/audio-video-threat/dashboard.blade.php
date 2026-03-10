@@ -24,7 +24,7 @@
                         <p class="text-sm text-secondary mb-0">Combined real-time audio and video monitoring for school safety</p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
-                        <button id="startAllBtn" class="btn btn-primary btn-sm">
+                        <button id="startAllBtn" class="btn btn-primary btn-sm" disabled title="Select a classroom first">
                             <i class="material-symbols-rounded text-sm">play_arrow</i> Start Detection
                         </button>
                         <button id="stopAllBtn" class="btn btn-danger btn-sm d-none">
@@ -37,12 +37,18 @@
 
         <!-- ===================== CLASSROOM IoT CONFIGURATION ===================== -->
         <div class="card mb-4 border-0 shadow-sm">
-            <div class="card-header pb-0 d-flex justify-content-between align-items-center">
+            <div class="card-header pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h6 class="mb-0">
                     <i class="material-symbols-rounded text-sm me-1">sensors</i>
                     Classroom IoT Device Setup
                 </h6>
-                <span class="badge bg-gradient-info" id="selectedClassBadge" style="display:none;"></span>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="badge bg-gradient-info" id="selectedClassBadge" style="display:none;"></span>
+                    <a href="{{ route('admin.management.audio-video-threat.classroom-setup') }}"
+                        class="btn btn-outline-info btn-sm">
+                        <i class="material-symbols-rounded text-sm">settings</i> Manage Classrooms
+                    </a>
+                </div>
             </div>
             <div class="card-body">
                 <div class="row g-3 align-items-end">
@@ -58,28 +64,42 @@
                                 data-section="{{ $cls->section }}"
                                 data-room="{{ $cls->room_number }}"
                                 data-camera="{{ $cls->camera_ip }}"
-                                data-audio="{{ $cls->audio_ip }}">
+                                data-camera-port="{{ $cls->camera_port ?? '80' }}"
+                                data-audio="{{ $cls->audio_ip }}"
+                                data-audio-port="{{ $cls->audio_port ?? '5002' }}"
+                                data-camera-off="{{ $cls->camera_off ? '1' : '0' }}"
+                                data-mic-off="{{ $cls->mic_off ? '1' : '0' }}">
                                 Grade {{ $cls->grade_level }} – {{ $cls->class_name }}{{ $cls->section ? ' ('.$cls->section.')' : '' }}
                             </option>
                             @endforeach
                         </select>
                     </div>
-                    <!-- Camera IP -->
+                    <!-- Camera IP + Port -->
                     <div class="col-md-3">
                         <label class="form-label text-xs text-uppercase text-secondary fw-bold mb-1">
                             <i class="material-symbols-rounded text-sm">videocam</i> Camera IP (ESP32-CAM)
                         </label>
-                        <input type="text" class="form-control form-control-sm" id="classroomCameraIp"
+                        <input type="text" class="form-control form-control-sm mb-1" id="classroomCameraIp"
                             placeholder="192.168.1.101">
-                        <div class="text-xs text-muted mt-1">Streaming URL will be <code>http://&lt;ip&gt;/stream</code></div>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text text-xs px-2">Port</span>
+                            <input type="number" class="form-control form-control-sm" id="classroomCameraPort"
+                                placeholder="80" value="80" min="1" max="65535">
+                        </div>
+                        <div class="text-xs text-muted mt-1">URL: <code>http://&lt;ip&gt;:&lt;port&gt;/stream</code></div>
                     </div>
-                    <!-- Audio IP -->
+                    <!-- Audio IP + Port -->
                     <div class="col-md-3">
                         <label class="form-label text-xs text-uppercase text-secondary fw-bold mb-1">
-                            <i class="material-symbols-rounded text-sm">mic</i> Audio IP (ESP32 Audio)
+                            <i class="material-symbols-rounded text-sm">mic</i> Audio IP (Wired/WiFi Module)
                         </label>
-                        <input type="text" class="form-control form-control-sm" id="classroomAudioIp"
+                        <input type="text" class="form-control form-control-sm mb-1" id="classroomAudioIp"
                             placeholder="192.168.1.102">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text text-xs px-2">Port</span>
+                            <input type="number" class="form-control form-control-sm" id="classroomAudioPort"
+                                placeholder="5002" value="5002" min="1" max="65535">
+                        </div>
                         <div class="text-xs text-muted mt-1">Separate wired or WiFi audio module</div>
                     </div>
                     <!-- Actions -->
@@ -99,45 +119,33 @@
                         <div>
                             <strong>⚠ CRITICAL ISSUE</strong> — Both camera and audio detected a threat in
                             <span id="criticalClassroomName" class="fw-bold"></span>.
-                            SMS alert dispatched.
+                            Telegram alert dispatched to admin.
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- ===================== ADMIN CONTACT NUMBER ===================== -->
+        <!-- ===================== TELEGRAM ALERT INFO ===================== -->
         <div class="card mb-4 border-0 shadow-sm">
             <div class="card-body py-3">
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="icon icon-md icon-shape bg-gradient-danger shadow-danger text-center border-radius-xl">
-                            <i class="material-symbols-rounded opacity-10 text-white">phone_in_talk</i>
+                        <div class="icon icon-md icon-shape bg-gradient-success shadow-success text-center border-radius-xl">
+                            <i class="material-symbols-rounded opacity-10 text-white">send</i>
                         </div>
                         <div>
-                            <p class="text-xs text-uppercase text-secondary mb-0 fw-bold">Critical SMS Alert Recipient</p>
-                            <div id="contactDisplayRow" class="d-flex align-items-center gap-2 mt-1">
-                                <span class="font-weight-bold text-dark" id="adminContactDisplay">+9470032488</span>
-                                <button class="btn btn-outline-primary btn-xs py-1 px-2" id="editContactBtn" style="font-size:11px;">
-                                    <i class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">edit</i> Edit
-                                </button>
-                            </div>
-                            <div id="contactEditRow" class="d-none mt-1">
-                                <div class="input-group input-group-sm" style="max-width:300px;">
-                                    <span class="input-group-text"><i class="material-symbols-rounded" style="font-size:14px;">phone</i></span>
-                                    <input type="tel" class="form-control" id="adminContactInput"
-                                        placeholder="+9470032488" value="+9470032488"
-                                        pattern="^\+[0-9]{7,15}$">
-                                    <button class="btn btn-success btn-sm" id="saveContactBtn">Save</button>
-                                    <button class="btn btn-secondary btn-sm" id="cancelContactBtn">Cancel</button>
-                                </div>
-                                <div class="text-xs text-secondary mt-1">Format: +[country code][number] e.g. +9470032488</div>
-                            </div>
+                            <p class="text-xs text-uppercase text-secondary mb-0 fw-bold">Critical Alert Channel</p>
+                            <p class="font-weight-bold text-dark mb-0 mt-1">
+                                <i class="material-symbols-rounded text-sm me-1" style="vertical-align:middle;">notifications_active</i>
+                                Telegram — Alerts sent directly to Admin
+                            </p>
+                            <p class="text-xs text-secondary mb-0 mt-1">Combined &amp; persistent threat alerts are delivered automatically via Telegram bot</p>
                         </div>
                     </div>
                     <div class="text-end">
-                        <span class="badge bg-success" id="smsAlertStatus">SMS Alerts Active</span>
-                        <p class="text-xs text-secondary mb-0 mt-1">Twilio SMS · Critical threats only</p>
+                        <span class="badge bg-success">Telegram Alerts Active</span>
+                        <p class="text-xs text-secondary mb-0 mt-1">Telegram Bot · Critical threats only</p>
                     </div>
                 </div>
             </div>
@@ -149,7 +157,7 @@
                 <i class="material-symbols-rounded critical-icon">crisis_alert</i>
                 <div>
                     <strong>⚠ CRITICAL COMBINED THREAT DETECTED</strong>
-                    <p class="mb-0 text-sm" id="criticalAlertMsg">Simultaneous audio and video threats detected. SMS alert sent.</p>
+                    <p class="mb-0 text-sm" id="criticalAlertMsg">Simultaneous audio and video threats detected. Telegram alert sent to admin.</p>
                 </div>
             </div>
         </div>

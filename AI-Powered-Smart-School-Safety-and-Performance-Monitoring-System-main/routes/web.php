@@ -140,6 +140,9 @@ Route::middleware(['auth'])->group(function () {
                 // Classroom IoT device management
                 Route::get('/classrooms', 'classrooms')->name('classrooms');
                 Route::post('/classrooms/update-devices', 'updateClassroomDevices')->name('classrooms.update-devices');
+                // Classroom IoT setup page
+                Route::get('/classroom-setup', 'classroomSetup')->name('classroom-setup');
+                Route::post('/classroom-setup/save', 'saveClassroomSetup')->name('classroom-setup.save');
             });
 
             // Timetables Management

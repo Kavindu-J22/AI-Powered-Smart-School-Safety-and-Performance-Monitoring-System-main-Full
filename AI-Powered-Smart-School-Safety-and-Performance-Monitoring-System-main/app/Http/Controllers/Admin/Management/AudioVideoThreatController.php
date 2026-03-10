@@ -34,7 +34,7 @@ class AudioVideoThreatController extends Controller
         $classrooms = SchoolClass::where('status', 'active')
             ->orderBy('grade_level')
             ->orderBy('class_name')
-            ->get(['id', 'class_name', 'grade_level', 'section', 'room_number', 'camera_ip', 'audio_ip']);
+            ->get(['id', 'class_name', 'grade_level', 'section', 'room_number', 'camera_ip', 'camera_port', 'camera_off', 'audio_ip', 'audio_port', 'mic_off']);
 
         return view($this->viewDirectory . 'dashboard', [
             'audioStats'  => $audioStats,
@@ -53,39 +53,112 @@ class AudioVideoThreatController extends Controller
         $classrooms = SchoolClass::where('status', 'active')
             ->orderBy('grade_level')
             ->orderBy('class_name')
-            ->get(['id', 'class_name', 'grade_level', 'section', 'room_number', 'camera_ip', 'audio_ip']);
+            ->get(['id', 'class_name', 'grade_level', 'section', 'room_number', 'camera_ip', 'camera_port', 'camera_off', 'audio_ip', 'audio_port', 'mic_off']);
 
         return response()->json(['success' => true, 'classrooms' => $classrooms]);
     }
 
     /**
-     * Save the camera_ip and audio_ip for a specific classroom.
+     * Save the camera_ip and audio_ip for a specific classroom (JSON API, used by dashboard).
      */
     public function updateClassroomDevices(Request $request): JsonResponse
     {
         $request->validate([
             'classroom_id' => 'required|exists:school_classes,id',
             'camera_ip'    => 'nullable|string|max:255',
+            'camera_port'  => 'nullable|string|max:10',
             'audio_ip'     => 'nullable|string|max:255',
+            'audio_port'   => 'nullable|string|max:10',
         ]);
 
         $classroom = SchoolClass::findOrFail($request->classroom_id);
         $classroom->update([
-            'camera_ip' => $request->camera_ip,
-            'audio_ip'  => $request->audio_ip,
+            'camera_ip'   => $request->camera_ip,
+            'camera_port' => $request->input('camera_port', '80'),
+            'audio_ip'    => $request->audio_ip,
+            'audio_port'  => $request->input('audio_port', '5002'),
         ]);
 
         Log::info('AudioVideo: Classroom IoT devices updated', [
             'classroom_id' => $classroom->id,
             'class_name'   => $classroom->class_name,
             'camera_ip'    => $classroom->camera_ip,
+            'camera_port'  => $classroom->camera_port,
             'audio_ip'     => $classroom->audio_ip,
+            'audio_port'   => $classroom->audio_port,
         ]);
 
         return response()->json([
             'success'   => true,
             'message'   => "IoT endpoints saved for {$classroom->class_name}",
-            'classroom' => $classroom->only(['id', 'class_name', 'grade_level', 'section', 'room_number', 'camera_ip', 'audio_ip']),
+            'classroom' => $classroom->only(['id', 'class_name', 'grade_level', 'section', 'room_number', 'camera_ip', 'camera_port', 'camera_off', 'audio_ip', 'audio_port', 'mic_off']),
+        ]);
+    }
+
+    /**
+     * Show the Classroom IoT Setup management page.
+     */
+    public function classroomSetup(): View
+    {
+        $classrooms = SchoolClass::orderBy('grade_level')->orderBy('class_name')->get([
+            'id',
+            'class_name',
+            'grade_level',
+            'section',
+            'room_number',
+            'camera_ip',
+            'camera_port',
+            'camera_off',
+            'audio_ip',
+            'audio_port',
+            'mic_off',
+            'status',
+        ]);
+
+        return view($this->viewDirectory . 'classroom-setup', compact('classrooms'));
+    }
+
+    /**
+     * Save IoT device settings (camera IP/port, camera_off, audio IP/port, mic_off) for one classroom.
+     * Called from the Classroom IoT Setup page.
+     */
+    public function saveClassroomSetup(Request $request): JsonResponse
+    {
+        $request->validate([
+            'classroom_id' => 'required|exists:school_classes,id',
+            'camera_ip'    => 'nullable|string|max:255',
+            'camera_port'  => 'nullable|string|max:10',
+            'camera_off'   => 'nullable|boolean',
+            'audio_ip'     => 'nullable|string|max:255',
+            'audio_port'   => 'nullable|string|max:10',
+            'mic_off'      => 'nullable|boolean',
+        ]);
+
+        $classroom = SchoolClass::findOrFail($request->classroom_id);
+        $classroom->update([
+            'camera_ip'   => $request->input('camera_ip', $classroom->camera_ip),
+            'camera_port' => $request->input('camera_port', $classroom->camera_port ?? '80'),
+            'camera_off'  => (bool) $request->input('camera_off', false),
+            'audio_ip'    => $request->input('audio_ip', $classroom->audio_ip),
+            'audio_port'  => $request->input('audio_port', $classroom->audio_port ?? '5002'),
+            'mic_off'     => (bool) $request->input('mic_off', false),
+        ]);
+
+        Log::info('AudioVideo: Classroom IoT setup saved', [
+            'classroom_id' => $classroom->id,
+            'class_name'   => $classroom->class_name,
+            'camera_ip'    => $classroom->camera_ip,
+            'camera_port'  => $classroom->camera_port,
+            'camera_off'   => $classroom->camera_off,
+            'audio_ip'     => $classroom->audio_ip,
+            'audio_port'   => $classroom->audio_port,
+            'mic_off'      => $classroom->mic_off,
+        ]);
+
+        return response()->json([
+            'success'   => true,
+            'message'   => "IoT settings saved for {$classroom->class_name}",
+            'classroom' => $classroom->only(['id', 'class_name', 'grade_level', 'section', 'room_number', 'camera_ip', 'camera_port', 'camera_off', 'audio_ip', 'audio_port', 'mic_off']),
         ]);
     }
 
